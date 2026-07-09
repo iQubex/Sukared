@@ -14,7 +14,7 @@ document.getElementById('obfuscateBtn').addEventListener('click', async () => {
     btnText.innerText = "PROCESSING...";
 
     try {
-        const response = await fetch("https://sukared-backend.onrender.com", {
+        const response = await fetch("https://sukared-backend.onrender.com/obfuscate", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
