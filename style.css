@@ -1,3 +1,15 @@
+:root {
+    --bg-black: #000000;
+    --panel-black: #030303;
+    --neon-red: #ff0055;
+    --neon-purple: #a200ff;
+    --neon-gradient: linear-gradient(135deg, var(--neon-red), var(--neon-purple));
+    --border-color: #1a1a1a;
+    --text-white: #ffffff;
+    --text-gray: #666666;
+    --font-mono: 'Fira Code', monospace;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -5,111 +17,270 @@
 }
 
 body {
-    background-color: #000000;
-    color: #ffffff;
-    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-black);
+    color: var(--text-white);
+    font-family: var(--font-mono);
     min-height: 100vh;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-.container {
-    width: 100%;
-    max-width: 1000px;
-    background: #0a0a0a;
-    border: 1px solid #1f1f1f;
-    border-radius: 12px;
-    padding: 30px;
-    box-shadow: 0 0 30px rgba(255, 0, 85, 0.05);
-}
-
-header {
-    text-align: center;
-    margin-bottom: 30px;
-}
-
-.neon-text {
-    font-size: 2.5rem;
-    font-weight: 700;
-    background: linear-gradient(90deg, #ff0055, #a200ff);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 20px rgba(255, 0, 85, 0.3);
-    margin-bottom: 10px;
-}
-
-header p {
-    color: #888;
-    font-size: 0.9rem;
-}
-
-.editor-panel {
+.app-container {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    height: 100vh;
+    padding: 24px;
+    box-sizing: border-box;
 }
 
-label {
-    display: block;
-    margin-bottom: 8px;
-    color: #aaa;
-    font-size: 0.85rem;
+.app-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.neon-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+    background: var(--neon-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 15px rgba(255, 0, 85, 0.5));
+    letter-spacing: 4px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+}
+
+.scramble-text {
+    font-size: 0.9rem;
+    color: var(--text-gray);
+    margin: 8px 0 0 0;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    height: 20px;
+    font-weight: 400;
+    text-shadow: 0 0 8px rgba(162, 0, 255, 0.3);
+}
+
+.app-main {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+    gap: 20px;
+    position: relative;
+    height: calc(100vh - 140px);
+}
+
+.editor-side {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    background-color: var(--panel-black);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.editor-side:hover {
+    border-color: #2a2a2a;
+}
+
+.editor-side:focus-within {
+    border-color: var(--neon-red);
+    box-shadow: 0 0 30px rgba(255, 0, 85, 0.15), 0 8px 32px rgba(0, 0, 0, 0.9);
+}
+
+.editor-side.right-side:focus-within {
+    border-color: var(--neon-purple);
+    box-shadow: 0 0 30px rgba(162, 0, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.9);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px;
+    background-color: #080808;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: #888888;
 }
 
 textarea {
-    width: 100%;
-    height: 250px;
-    background-color: #050505;
-    border: 1px solid #222;
-    border-radius: 8px;
-    color: #00ff88;
-    font-family: 'Fira Code', monospace;
-    padding: 15px;
-    font-size: 0.9rem;
+    flex-grow: 1;
+    background: transparent;
+    border: none;
     resize: none;
     outline: none;
-    transition: all 0.3s ease;
+    color: #e0e0e0;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    padding: 24px;
+    box-sizing: border-box;
 }
 
-textarea:focus {
-    border-color: #ff0055;
-    box-shadow: 0 0 15px rgba(255, 0, 85, 0.1);
+textarea::placeholder {
+    color: #444444;
 }
 
-.controls {
+textarea::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+textarea::-webkit-scrollbar-track {
+    background: transparent;
+}
+textarea::-webkit-scrollbar-thumb {
+    background: #151515;
+    border-radius: 4px;
+}
+textarea::-webkit-scrollbar-thumb:hover {
+    background: #252525;
+}
+
+.center-controls {
     display: flex;
+    align-items: center;
     justify-content: center;
+    position: relative;
+    z-index: 100;
 }
 
-.neon-button {
-    background: linear-gradient(90deg, #ff0055, #a200ff);
-    color: white;
+.play-button {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--neon-gradient);
     border: none;
-    padding: 12px 40px;
-    font-size: 1rem;
-    font-weight: 700;
-    border-radius: 6px;
+    color: var(--text-white);
     cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 25px rgba(255, 0, 85, 0.5), 0 0 50px rgba(162, 0, 255, 0.3);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    outline: none;
 }
 
-.neon-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 25px rgba(255, 0, 85, 0.6);
+.play-button svg {
+    width: 28px;
+    height: 28px;
+    margin-left: 6px;
+    transition: transform 0.3s ease;
 }
 
-.neon-button:active {
-    transform: translateY(0);
+.play-button:hover {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 0 35px rgba(255, 0, 85, 0.7), 0 0 70px rgba(162, 0, 255, 0.5);
 }
 
-.neon-button:disabled {
-    opacity: 0.5;
+.play-button:active {
+    transform: scale(0.92);
+}
+
+.play-button:disabled {
+    background: #111;
+    color: #333;
+    border: 1px solid #222;
+    box-shadow: none;
     cursor: not-allowed;
+}
+
+@keyframes buttonPulse {
+    0% { transform: scale(1.1); box-shadow: 0 0 35px rgba(255, 0, 85, 0.7); }
+    50% { transform: scale(1.15); box-shadow: 0 0 45px rgba(162, 0, 255, 0.8); }
+    100% { transform: scale(1.1); box-shadow: 0 0 35px rgba(255, 0, 85, 0.7); }
+}
+
+.play-button.processing {
+    animation: buttonPulse 1.5s infinite ease-in-out;
+}
+
+@keyframes ripple {
+    0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0.9;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 0;
+    }
+}
+
+.ripple-wave {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 2px solid var(--neon-red);
+    box-shadow: 0 0 20px var(--neon-red);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: ripple 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: #666666;
+    border-radius: 8px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.action-btn:hover {
+    border-color: var(--neon-purple);
+    color: var(--text-white);
+    box-shadow: 0 0 15px rgba(162, 0, 255, 0.3);
+    background-color: rgba(162, 0, 255, 0.08);
+}
+
+.action-btn:active {
+    transform: scale(0.9);
+}
+
+@media (max-width: 768px) {
+    body {
+        overflow: auto;
+        height: auto;
+    }
+    .app-container {
+        height: auto;
+        min-height: 100vh;
+        padding: 16px;
+    }
+    .app-main {
+        flex-direction: column;
+        height: auto;
+        gap: 20px;
+    }
+    textarea {
+        height: 300px;
+    }
+    .center-controls {
+        margin: 10px 0;
+    }
 }
