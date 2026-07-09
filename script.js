@@ -4,31 +4,108 @@ document.addEventListener('DOMContentLoaded', () => {
     const outputArea = document.getElementById('codeOutput');
     const copyBtn = document.getElementById('copyBtn');
     const downloadBtn = document.getElementById('downloadBtn');
+    
+    const mainTitle = document.getElementById('mainTitle');
     const subTitle = document.getElementById('subTitle');
 
-    // 1. Header Glitch / Scramble Animation
-    function scrambleText(element, finalWord) {
-        const chars = '010101!@#$%&*?';
-        let iterations = 0;
-        const interval = setInterval(() => {
-            element.innerText = finalWord.split('')
-                .map((char, index) => {
-                    if (index < iterations) {
-                        return finalWord[index];
+    // 1. Asynchronous Decrypt (Hacker Scramble & Lock) & Idle Micro-Glitch Class
+    class HackerTextEffect {
+        constructor(element, finalText, resolveSpeed = 350, scrambleSpeed = 30) {
+            this.element = element;
+            this.finalText = finalText;
+            this.resolveSpeed = resolveSpeed; 
+            this.scrambleSpeed = scrambleSpeed; 
+            this.chars = '$#%&?@[]{}<>+=!*^~';
+            this.resolvedIndex = 0;
+            this.interval = null;
+            this.glitchTimeout = null;
+            this.isResolved = false;
+        }
+
+        start() {
+            this.resolvedIndex = 0;
+            this.isResolved = false;
+            
+            // Rapid scramble loop (30ms)
+            this.interval = setInterval(() => {
+                this.update();
+            }, this.scrambleSpeed);
+
+            // Slow lock loop (350ms)
+            const lockNextChar = () => {
+                if (this.resolvedIndex < this.finalText.length) {
+                    this.resolvedIndex++;
+                    setTimeout(lockNextChar, this.resolveSpeed);
+                } else {
+                    clearInterval(this.interval);
+                    this.element.innerText = this.finalText;
+                    this.isResolved = true;
+                    this.startIdleGlitch();
+                }
+            };
+            setTimeout(lockNextChar, this.resolveSpeed);
+        }
+
+        update() {
+            let display = '';
+            for (let i = 0; i < this.finalText.length; i++) {
+                if (i < this.resolvedIndex) {
+                    display += this.finalText[i];
+                } else {
+                    if (this.finalText[i] === ' ') {
+                        display += ' ';
+                    } else {
+                        display += this.chars[Math.floor(Math.random() * this.chars.length)];
                     }
-                    return chars[Math.floor(Math.random() * chars.length)];
-                })
-               .join('');
-            
-            if (iterations >= finalWord.length) {
-                clearInterval(interval);
+                }
             }
-            
-            iterations += 1 / 3;
-        }, 30);
+            this.element.innerText = display;
+        }
+
+        startIdleGlitch() {
+            const triggerGlitch = () => {
+                if (!this.isResolved) return;
+
+                const textArray = this.finalText.split('');
+                const numGlitched = Math.random() > 0.5 ? 2 : 1;
+                
+                for (let k = 0; k < numGlitched; k++) {
+                    const idx = Math.floor(Math.random() * this.finalText.length);
+                    if (this.finalText[idx] !== ' ') {
+                        textArray[idx] = this.chars[Math.floor(Math.random() * this.chars.length)];
+                    }
+                }
+
+                this.element.innerText = textArray.join('');
+
+                // Restore original letter after 60-100ms
+                setTimeout(() => {
+                    if (this.isResolved) {
+                        this.element.innerText = this.finalText;
+                    }
+                }, 60 + Math.random() * 40);
+
+                // Schedule next glitch in 1.5s to 3s
+                const nextGlitchTime = 1500 + Math.random() * 1500;
+                this.glitchTimeout = setTimeout(triggerGlitch, nextGlitchTime);
+            };
+
+            const firstGlitchTime = 1500 + Math.random() * 1500;
+            this.glitchTimeout = setTimeout(triggerGlitch, firstGlitchTime);
+        }
+
+        stop() {
+            clearInterval(this.interval);
+            clearTimeout(this.glitchTimeout);
+        }
     }
 
-    scrambleText(subTitle, 'Obfuscator');
+    // Initialize scramble text effects on load
+    const mainTitleEffect = new HackerTextEffect(mainTitle, 'SukaRed');
+    const subTitleEffect = new HackerTextEffect(subTitle, 'Obfuscator');
+    
+    mainTitleEffect.start();
+    subTitleEffect.start();
 
     // 2. Play Button Click Event & Ripple Animation
     playBtn.addEventListener('click', async () => {
