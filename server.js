@@ -1,5 +1,9 @@
 const express = require('express');
+const cors = require('cors'); // 1. EKLENEN SATIR: Kütüphaneyi çağırdık
+
 const app = express();
+
+app.use(cors()); // 2. EKLENEN SATIR: Tarayıcı engellerini kaldırdık
 app.use(express.json());
 
 app.post('/obfuscate', (req, res) => {
@@ -7,7 +11,6 @@ app.post('/obfuscate', (req, res) => {
     if (!code) return res.status(400).send({ error: "Kod gönder kanka!" });
 
     // 1. Aşama: String Şifreleme (Metinleri ASCII sayılarına çevirir)
-    // Örnek: "deneme" -> string.char(100, 101, 110, 101, 109, 101)
     let obfCode = code.replace(/"(.*?)"/g, (match, p1) => {
         let bytes = [];
         for (let i = 0; i < p1.length; i++) {
@@ -16,8 +19,7 @@ app.post('/obfuscate', (req, res) => {
         return `string.char(${bytes.join(', ')})`;
     });
 
-    // 2. Aşama: Basit Değişken Bozucu (Sadece local tanımlarını hedefler)
-    // Örnek: local hiz = 50 -> local lIIlI = 50
+    // 2. Aşama: Basit Değişken Bozucu
     const randomName = () => 'lI' + Math.random().toString(36).substring(7).replace(/[0-9]/g, 'I');
     obfCode = obfCode.replace(/local\s+([a-zA-Z_]\w*)\s*=/g, `local ${randomName()} =`);
 
