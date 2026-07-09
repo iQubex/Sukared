@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SukaRed | Advanced Luau Obfuscator</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1 class="neon-text">SukaRed Obfuscator</h1>
+            <p>Secure your Luau scripts with military-grade protection.</p>
+        </header>
+
+        <main>
+            <div class="editor-panel">
+                <div class="input-section">
+                    <label for="codeInput">Original Code</label>
+                    <textarea id="codeInput" placeholder="-- Paste your Luau script here..."></textarea>
+                </div>
+
+                <div class="controls">
+                    <button id="obfuscateBtn" class="neon-button">
+                        <span id="btnText">OBFUSCATE</span>
+                    </button>
+                </div>
+
+                <div class="output-section">
+                    <label for="codeOutput">Protected Code</label>
+                    <textarea id="codeOutput" readonly
+                        placeholder="-- Your obfuscated code will appear here..."></textarea>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
