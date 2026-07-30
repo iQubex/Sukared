@@ -3,44 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#050508">
-    <title>SukaRed 1.0 Beta</title>
-    <link rel="stylesheet" href="/style.css?v=saas-router-1">
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#000000">
+    <meta name="color-scheme" content="dark">
+    <title>SukaRed 1.1</title>
+    <link rel="stylesheet" href="/style.css?v=mono-workspace-1">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="ambient-particles" aria-hidden="true"></div>
-    <div class="app-shell">
+    <div class="app-shell" id="appShell">
         <header class="site-header">
-            <a class="brand" href="/dashboard" data-route aria-label="SukaRed dashboard">
-                <span class="brand-name" id="mainTitle">SukaRed</span>
+            <a class="brand" href="/workspace" data-route aria-label="SukaRed workspace">
+                <span class="brand-name">SUKARED</span>
                 <span class="beta-badge">BETA</span>
-                <span class="brand-version">1.0</span>
             </a>
-            <button class="nav-toggle icon-button" id="navToggle" type="button" aria-label="Open navigation" aria-expanded="false">
-                <span></span><span></span><span></span>
-            </button>
+            <button class="nav-toggle icon-button" id="navToggle" type="button" aria-label="Open navigation" aria-expanded="false"></button>
             <nav class="site-nav" id="siteNav" aria-label="Primary navigation">
-                <a href="/dashboard" data-route data-nav="dashboard">Obfuscate</a>
-                <a href="/history" data-route data-nav="history">History</a>
-                <a href="/pricing" data-route data-nav="pricing">Pricing <span class="nav-badge">Soon</span></a>
+                <a href="/workspace" data-route data-nav="workspace">Workspace</a>
                 <a href="/changelog" data-route data-nav="changelog">Changelog</a>
-                <a href="/credits" data-route data-nav="credits">Credits</a>
-                <a href="/profile" data-route data-nav="profile">Profile <span class="nav-badge">Soon</span></a>
             </nav>
-            <a class="settings-nav icon-button" href="/settings" data-route aria-label="Settings" title="Settings">⚙</a>
+            <button class="settings-nav icon-button" id="globalSettings" type="button" aria-label="Open settings" title="Settings"></button>
         </header>
 
         <main id="routeView" class="route-view" tabindex="-1"></main>
 
         <footer class="site-footer">
-            <span>© 2026 SukaRed</span>
-            <span>SukaRed 1.0 Beta</span>
+            <span>SukaRed 1.1</span>
+            <span>Public Beta</span>
             <span>Local history · No source retention</span>
             <nav aria-label="Footer navigation">
                 <a href="/changelog" data-route>Changelog</a>
-                <span title="Coming Soon">Privacy · Soon</span>
-                <span title="Coming Soon">Status · Soon</span>
+                <a href="/history" data-route>History</a>
             </nav>
         </footer>
     </div>
@@ -49,11 +41,16 @@
     <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-    <script src="/app/history-store.js?v=saas-router-1"></script>
-    <script src="/app/router.js?v=saas-router-1"></script>
-    <script src="/app/ui.js?v=saas-router-1"></script>
-    <script src="/app/dashboard.js?v=saas-router-1"></script>
-    <script src="/app/views.js?v=saas-router-1"></script>
-    <script src="/app/main.js?v=saas-router-1"></script>
+    <script src="/app/history-store.js?v=mono-workspace-1"></script>
+    <script src="/app/icons.js?v=mono-workspace-1"></script>
+    <script src="/app/motion.js?v=mono-workspace-1"></script>
+    <script src="/app/router.js?v=mono-workspace-1"></script>
+    <script src="/app/ui.js?v=mono-workspace-1"></script>
+    <script src="/app/landing.js?v=mono-workspace-1"></script>
+    <script src="/app/transition.js?v=mono-workspace-1"></script>
+    <script src="/app/changelog-data.js?v=mono-workspace-1"></script>
+    <script src="/app/dashboard.js?v=mono-workspace-1"></script>
+    <script src="/app/views.js?v=mono-workspace-1"></script>
+    <script src="/app/main.js?v=mono-workspace-1"></script>
 </body>
 </html>

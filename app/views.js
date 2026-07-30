@@ -112,7 +112,7 @@
             if (!records.length) {
                 const empty = el('div', 'empty-state');
                 empty.append(el('h2', '', 'No build history yet'), el('p', '', 'Your completed and failed builds will appear here. History is stored locally in this browser.'));
-                const start = el('a', 'button button-primary', 'Start Obfuscating'); start.href = '/dashboard'; start.dataset.route = ''; empty.append(start); list.append(empty); return;
+                const start = el('a', 'button button-primary', 'Open Workspace'); start.href = '/workspace'; start.dataset.route = ''; empty.append(start); list.append(empty); return;
             }
             const groups = new Map();
             records.forEach(record => { const label = groupLabel(record.createdAt); if (!groups.has(label)) groups.set(label, []); groups.get(label).push(record); });
@@ -167,13 +167,15 @@
     };
 
     const changelog = ({ outlet }) => {
-        const page = el('section', 'content-page page-section'); page.append(heading('Product Updates', 'Changelog', 'What changed across SukaRed releases.'));
-        const entries = [
-            { version: 'SukaRed 1.0 Beta', date: 'July 2026', status: 'Current', changes: ['New multi-page dashboard', 'Persistent local build history', 'Profile settings redesign', 'Build Summary simplification', 'Native Luau runtime support', 'Production worker isolation', 'Good profile compatibility improvements', 'Pro experimental profile', 'Public beta privacy safeguards'] },
-            { version: 'Earlier Development', date: '2026', status: 'Archive', changes: ['Initial VM integration', 'Closure and upvalue support', 'Mixed interpreter families', 'Shared interpreter clusters', 'Stress and fuzz testing'] }
-        ];
+        const page = el('section', 'content-page page-section changelog-page'); page.append(heading('Release Notes', 'Changelog', 'Verified product changes for the current public beta.'));
+        const entries = window.SukaRedChangelog || [];
         const timeline = el('div', 'changelog-list');
-        entries.forEach(entry => { const card = el('article', 'changelog-card'); const top = el('div', 'changelog-top'); top.append(el('div', '', null), el('span', 'status-badge', entry.status)); top.firstChild.append(el('h2', '', entry.version), el('time', '', entry.date)); const list = el('ul'); entry.changes.forEach(change => list.append(el('li', '', change))); card.append(top, list); timeline.append(card); });
+        entries.forEach(entry => {
+            const card = el('article', 'changelog-entry'); const top = el('header', 'changelog-top');
+            top.append(el('h2', '', entry.version), el('span', 'status-badge', entry.status)); card.append(top);
+            Object.entries(entry.groups).forEach(([group, changes]) => { const section = el('section', 'change-group'); section.append(el('h3', '', group)); const list = el('ul'); changes.forEach(change => list.append(el('li', '', change))); section.append(list); card.append(section); });
+            timeline.append(card);
+        });
         page.append(timeline); setPage(outlet, page);
     };
 
@@ -195,7 +197,7 @@
     };
 
     const notFound = ({ outlet }) => {
-        const page = el('section', 'content-page page-section centered-page'); const panel = el('section', 'placeholder-panel'); panel.append(el('span', 'error-code', '404'), el('h1', '', 'Page not found'), el('p', '', 'The page you requested does not exist.')); const link = el('a', 'button button-primary', 'Return to Dashboard'); link.href = '/dashboard'; link.dataset.route = ''; panel.append(link); page.append(panel); setPage(outlet, page);
+        const page = el('section', 'content-page page-section centered-page'); const panel = el('section', 'placeholder-panel'); panel.append(el('span', 'error-code', '404'), el('h1', '', 'Page not found'), el('p', '', 'The page you requested does not exist.')); const link = el('a', 'button button-primary', 'Open Workspace'); link.href = '/workspace'; link.dataset.route = ''; panel.append(link); page.append(panel); setPage(outlet, page);
     };
 
     window.SukaRedViews = { history, historyDetail, pricing, credits, changelog, profile, settings, notFound };

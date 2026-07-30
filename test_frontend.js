@@ -1,0 +1,87 @@
+'use strict';
+
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const root = __dirname;
+const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+
+const motion = require('./app/motion.js');
+assert.strictEqual(motion.stripLuaComments('-- movement settings\nlocal speed = 100 -- player speed'), '\nlocal speed = 100 ');
+assert.strictEqual(motion.stripLuaComments("print('-- stays') -- removed"), "print('-- stays') ");
+assert.strictEqual(motion.stripLuaComments('print("-- stays") -- removed'), 'print("-- stays") ');
+assert.strictEqual(motion.stripLuaComments('local text = [[-- long string]] -- removed'), 'local text = [[-- long string]] ');
+assert.strictEqual(motion.stripLuaComments('local text = [=[-- long string]=]\n--[=[ hidden\ncomment ]=]\nprint(text)'), 'local text = [=[-- long string]=]\n\n\nprint(text)');
+assert.strictEqual(motion.stripLuaComments('a() --[==[ hidden ]==]\nb()'), 'a() \nb()');
+assert.strictEqual(motion.selectSourceSnippet('   \n\nlocal function add(a, b)\n    return a + b\nend\nprint(add(1, 2))'), 'local function add(a, b)\n    return a + b\nend\nprint(add(1, 2))');
+assert.strictEqual(motion.selectSourceSnippet(''), '');
+assert.strictEqual(motion.selectSourceSnippet('\n  print(1)'), '  print(1)');
+assert.strictEqual(motion.selectSourceSnippet('-- heading\nlocal speed = 100 -- inline\n\n-- next\nprint("-- string", speed)'), 'local speed = 100 \nprint("-- string", speed)');
+assert.strictEqual(motion.selectSourceSnippet('-- comments only\n-- nothing visible'), '');
+assert(motion.selectSourceSnippet(`local value = "${'x'.repeat(120)}"`).split('\n')[0].length <= 92);
+assert(motion.selectSourceSnippet('local a = 1\nlocal b = 2\nlocal c = 3\nlocal d = 4\nlocal e = 5\nlocal f = 6\nlocal g = 7').split('\n').length <= 6);
+
+const preview = 'local function calculateDamage(player)\n    local damage = player.Health * 2\n    print("damage", damage)\n    return damage\nend';
+const tokens = motion.tokenizePreview(preview);
+assert(tokens.some(token => token.type === 'keyword' && token.value === 'local'));
+assert(tokens.some(token => token.type === 'property' && token.value === 'Health' && token.eligible));
+assert(tokens.some(token => token.type === 'string' && token.value === '"damage"'));
+assert(tokens.some(token => token.type === 'operator' && token.value === '*'));
+assert(tokens.some(token => token.type === 'punctuation' && token.value === '('));
+assert(tokens.filter(token => token.value === 'print').every(token => !token.eligible));
+assert(tokens.filter(token => token.type === 'keyword').every(token => !token.eligible));
+const methodTokens = motion.tokenizePreview('object:Run(config.value)');
+assert(methodTokens.some(token => token.type === 'property' && token.value === 'Run'));
+assert(methodTokens.some(token => token.type === 'property' && token.value === 'value'));
+
+const plan = motion.createIdentifierPlan(tokens, () => 0, 10);
+assert.deepStrictEqual(plan.steps.map(step => step.identifier), ['calculateDamage', 'player', 'damage', 'Health']);
+assert.strictEqual(new Set(plan.steps.map(step => step.replacement)).size, plan.steps.length);
+const firstStage = motion.renderTokenText(tokens, plan, 1);
+const secondStage = motion.renderTokenText(tokens, plan, 2);
+assert(!firstStage.includes('calculateDamage') && firstStage.includes('player.Health'));
+assert(!secondStage.includes('calculateDamage') && !secondStage.includes('player.Health'));
+assert(secondStage.includes('local damage') && secondStage.includes('return damage'));
+const finalStage = motion.renderTokenText(tokens, plan, plan.steps.length);
+assert(!finalStage.includes('calculateDamage') && !finalStage.includes('player.Health'));
+assert(!finalStage.includes('local damage') && !finalStage.includes('return damage'));
+assert(finalStage.includes('local function') && finalStage.includes('print("damage"'));
+assert.strictEqual(motion.createTokenGlitchFrame('calculateDamage', 0, () => 1), 'calculateDamage');
+
+const routerContext = { window: {}, module: { exports: {} }, URL, URLSearchParams };
+vm.runInNewContext(read('app/router.js'), routerContext, { filename: 'router.js' });
+const Router = routerContext.window.SukaRedRouter;
+const router = new Router([{ path: '/', title: 'Landing' }, { path: '/workspace', title: 'Workspace' }, { path: '/changelog', title: 'Changelog' }, { path: '*', title: '404' }]);
+assert.strictEqual(router.normalize('/'), '/');
+assert.strictEqual(router.match('/workspace').route.title, 'Workspace');
+assert.strictEqual(router.match('/changelog').route.title, 'Changelog');
+assert.strictEqual(router.match('/missing').route.title, '404');
+
+const main = read('app/main.js');
+const dashboard = read('app/dashboard.js');
+const transition = read('app/transition.js');
+const settings = read('app/history-store.js');
+const html = read('index.html');
+const changelog = read('app/changelog-data.js');
+assert(main.includes("route('/', 'Welcome'"));
+assert(main.includes("route('/workspace', 'Workspace'"));
+assert(main.includes("route('/changelog', 'Changelog'"));
+assert(dashboard.includes("JSON.stringify({ code, profile: currentSettings.profile })"), 'request payload changed');
+assert(dashboard.includes('window.SukaRedTransition.begin(code)'), 'transition is not connected to the production request');
+assert(transition.includes('for (const step of plan.steps)'), 'identifier animation is not sequential');
+assert(transition.includes("state.textContent = 'PROCESSING'"), 'slow request waiting state is missing');
+assert(transition.includes("state.textContent = outcome === 'success' ? 'COMPLETE' : 'STOPPED'"), 'terminal transition states are missing');
+assert(transition.includes('plan.mapping.clear()') && transition.includes('pre.replaceChildren()'), 'preview state is not cleared');
+assert(!transition.includes('innerHTML') && !transition.includes('createGlitchFrame'), 'unsafe or full-block rendering returned');
+assert(!settings.includes('sourceCode') && !settings.includes('inputSource'), 'settings must not persist source');
+assert(!main.includes('location.search') && !main.includes('location.hash'), 'source-capable URL state should not be retained');
+assert(html.includes('href="/workspace"') && html.includes('href="/changelog"'));
+assert(html.includes('SukaRed 1.1') && main.includes('SukaRed 1.1'), 'public version is inconsistent');
+assert(changelog.indexOf('SukaRed 1.1') < changelog.indexOf('SukaRed 1.0'), 'current release must appear first');
+assert(changelog.includes("status: 'Current Beta'") && changelog.includes("status: 'Previous Beta'"));
+for (const internalTerm of ['opcode', 'bytecode', 'interpreter', 'upvalue', 'virtualization']) assert(!changelog.toLowerCase().includes(internalTerm), `changelog exposes ${internalTerm}`);
+assert(!html.includes('ambient-particles'));
+assert(!read('app/ui.js').includes("id: 'hell'"), 'unavailable Hell profile is exposed');
+
+console.log('SukaRed frontend tests passed');

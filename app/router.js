@@ -12,7 +12,7 @@
 
         normalize(pathname) {
             const value = String(pathname || '/').replace(/\/+$/, '') || '/';
-            return value === '/' ? '/dashboard' : value;
+            return value;
         }
 
         match(pathname) {
@@ -48,19 +48,18 @@
         navigate(target, options = {}) {
             const url = new URL(target, location.origin);
             const method = options.replace ? 'replaceState' : 'pushState';
-            history[method]({}, '', `${url.pathname}${url.search}${url.hash}`);
+            history[method]({}, '', url.pathname);
             this.render();
         }
 
         start() {
-            if (location.pathname === '/') history.replaceState({}, '', `/dashboard${location.search}${location.hash}`);
             document.addEventListener('click', event => {
                 const link = event.target.closest('a[data-route]');
                 if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || link.target) return;
                 const url = new URL(link.href, location.origin);
                 if (url.origin !== location.origin) return;
                 event.preventDefault();
-                this.navigate(`${url.pathname}${url.search}${url.hash}`);
+                this.navigate(url.pathname);
             });
             addEventListener('popstate', () => this.render());
             return this.render();
@@ -68,4 +67,5 @@
     }
 
     window.SukaRedRouter = Router;
+    if (typeof module === 'object' && module.exports) module.exports = Router;
 })();
