@@ -48,6 +48,17 @@ assert(!finalStage.includes('calculateDamage') && !finalStage.includes('player.H
 assert(!finalStage.includes('local damage') && !finalStage.includes('return damage'));
 assert(finalStage.includes('local function') && finalStage.includes('print("damage"'));
 assert.strictEqual(motion.createTokenGlitchFrame('calculateDamage', 0, () => 1), 'calculateDamage');
+const sequentialPlan = motion.createSequentialTokenPlan(motion.tokenizePreview('local value = source + value'), () => 0, 10);
+assert.deepStrictEqual(sequentialPlan.steps.map(step => step.identifier), ['value', 'source', 'value']);
+assert(sequentialPlan.steps[0].tokenIndex < sequentialPlan.steps[1].tokenIndex && sequentialPlan.steps[1].tokenIndex < sequentialPlan.steps[2].tokenIndex);
+assert.strictEqual(sequentialPlan.steps[0].replacement, sequentialPlan.steps[2].replacement, 'repeated identifiers should keep a stable replacement');
+const protectedPlan = motion.createProtectedPreviewPlan(motion.tokenizePreview('local value = "hello" .. 42'), () => 0, 20);
+assert.deepStrictEqual(protectedPlan.steps.map(step => step.type), ['keyword', 'identifier', 'operator', 'string', 'operator', 'number']);
+assert(protectedPlan.steps.find(step => step.type === 'identifier').replacement.startsWith('_0x'));
+assert(protectedPlan.steps.find(step => step.type === 'string').replacement.startsWith('_K['));
+assert(protectedPlan.steps.find(step => step.type === 'number').replacement.startsWith('_N['));
+assert.strictEqual(motion.createCharacterMorphFrame('value', '_0xABC', 0, () => 0), '#alue');
+assert(motion.createCharacterMorphFrame('value', '_0xABC', 3, () => 0).startsWith('_0x'));
 
 const routerContext = { window: {}, module: { exports: {} }, URL, URLSearchParams };
 vm.runInNewContext(read('app/router.js'), routerContext, { filename: 'router.js' });
@@ -69,7 +80,10 @@ assert(main.includes("route('/workspace', 'Workspace'"));
 assert(main.includes("route('/changelog', 'Changelog'"));
 assert(dashboard.includes("JSON.stringify({ code, profile: currentSettings.profile })"), 'request payload changed');
 assert(dashboard.includes('window.SukaRedTransition.begin(code)'), 'transition is not connected to the production request');
-assert(transition.includes('for (const step of plan.steps)'), 'identifier animation is not sequential');
+assert(transition.includes('for (const step of plan.steps)'), 'character animation is not sequential');
+assert(transition.includes('createProtectedPreviewPlan(tokens)'), 'protected character transition plan is not connected');
+assert(transition.includes('renderer.updateToken(step.tokenIndex'), 'transition does not update tokens in reading order');
+assert(transition.includes('createCharacterMorphFrame(step.source, step.replacement, character)'), 'character-by-character morphing is not connected');
 assert(transition.includes("state.textContent = 'PROCESSING'"), 'slow request waiting state is missing');
 assert(transition.includes("state.textContent = outcome === 'success' ? 'COMPLETE' : 'STOPPED'"), 'terminal transition states are missing');
 assert(transition.includes('plan.mapping.clear()') && transition.includes('pre.replaceChildren()'), 'preview state is not cleared');
@@ -77,11 +91,14 @@ assert(!transition.includes('innerHTML') && !transition.includes('createGlitchFr
 assert(!settings.includes('sourceCode') && !settings.includes('inputSource'), 'settings must not persist source');
 assert(!main.includes('location.search') && !main.includes('location.hash'), 'source-capable URL state should not be retained');
 assert(html.includes('href="/workspace"') && html.includes('href="/changelog"'));
-assert(html.includes('SukaRed 1.1') && main.includes('SukaRed 1.1'), 'public version is inconsistent');
-assert(changelog.indexOf('SukaRed 1.1') < changelog.indexOf('SukaRed 1.0'), 'current release must appear first');
+assert(html.includes('Luavex Beta') && main.includes('Luavex Beta'), 'public brand is inconsistent');
+assert(html.includes('/assets/luavex-brand.png'), 'Luavex logo asset is not connected');
+assert(read('app/landing.js').includes("start.textContent = 'START'"), 'landing action label must be START');
+assert(changelog.indexOf('Luavex Beta') < changelog.indexOf('Version 1.1'), 'current release must appear first');
 assert(changelog.includes("status: 'Current Beta'") && changelog.includes("status: 'Previous Beta'"));
 for (const internalTerm of ['opcode', 'bytecode', 'interpreter', 'upvalue', 'virtualization']) assert(!changelog.toLowerCase().includes(internalTerm), `changelog exposes ${internalTerm}`);
 assert(!html.includes('ambient-particles'));
-assert(!read('app/ui.js').includes("id: 'hell'"), 'unavailable Hell profile is exposed');
+const ui = read('app/ui.js');
+for (const profile of ['hell', 'blatant', 'fatality']) assert(ui.includes(`id: '${profile}'`) && ui.includes('enabled: false'), `${profile} locked profile presentation is missing`);
 
-console.log('SukaRed frontend tests passed');
+console.log('Luavex frontend tests passed');

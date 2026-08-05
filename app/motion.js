@@ -6,19 +6,21 @@
     'use strict';
 
     const TIMING = Object.freeze({
-        bootTotal: 1800,
+        bootTotal: 1650,
         bootFrame: 52,
         landingExit: 320,
         transitionOpen: 180,
         transitionPreview: 280,
-        tokenCorrupt: 55,
-        tokenSettle: 30,
+        tokenCorrupt: 64,
+        characterStep: 14,
+        tokenSettle: 24,
         transitionFinal: 220,
         transitionSuccess: 220,
         transitionClose: 180,
         reducedPreview: 120,
         reducedTransform: 80,
-        maxIdentifiers: 10
+        maxIdentifiers: 10,
+        maxPreviewTokens: 80
     });
 
     const KEYWORDS = new Set([
@@ -226,6 +228,61 @@
         return { mapping, steps };
     };
 
+    const createSequentialTokenPlan = (tokens, random = Math.random, maxTokens = TIMING.maxPreviewTokens) => {
+        const mapping = new Map();
+        const steps = [];
+        const used = new Set();
+        tokens.forEach((token, tokenIndex) => {
+            if (!token.eligible || steps.length >= maxTokens) return;
+            let replacement = mapping.get(token.value);
+            if (!replacement) {
+                let numeric = Math.floor(random() * 0xE00 + 0x100) + mapping.size;
+                replacement = `_0x${numeric.toString(16).toUpperCase()}`;
+                while (used.has(replacement)) replacement = `_0x${(++numeric).toString(16).toUpperCase()}`;
+                used.add(replacement);
+                mapping.set(token.value, replacement);
+            }
+            steps.push({ tokenIndex, identifier: token.value, replacement });
+        });
+        return { mapping, steps };
+    };
+
+    const createProtectedPreviewPlan = (tokens, random = Math.random, maxTokens = TIMING.maxPreviewTokens) => {
+        const mapping = new Map();
+        const steps = [];
+        const used = new Set();
+        const nextOpaque = prefix => {
+            let numeric = Math.floor(random() * 0xE00 + 0x100) + used.size;
+            let value = `${prefix}0x${numeric.toString(16).toUpperCase()}`;
+            while (used.has(value)) value = `${prefix}0x${(++numeric).toString(16).toUpperCase()}`;
+            used.add(value);
+            return value;
+        };
+        const replacementFor = token => {
+            const key = `${token.type}:${token.value}`;
+            if (mapping.has(key)) return mapping.get(key);
+            let replacement = token.value;
+            if (token.type === 'identifier' || token.type === 'property') replacement = nextOpaque('_');
+            else if (token.type === 'string') replacement = `_K[${nextOpaque('')}]`;
+            else if (token.type === 'number') replacement = `_N[${nextOpaque('')}]`;
+            mapping.set(key, replacement);
+            return replacement;
+        };
+        tokens.forEach((token, tokenIndex) => {
+            if (steps.length >= maxTokens || token.type === 'whitespace' || token.type === 'newline') return;
+            if (!['keyword', 'identifier', 'property', 'string', 'number', 'operator'].includes(token.type)) return;
+            const replacement = replacementFor(token);
+            steps.push({
+                tokenIndex,
+                type: token.type,
+                source: token.value,
+                replacement,
+                characterCount: Math.max(Array.from(token.value).length, Array.from(replacement).length)
+            });
+        });
+        return { mapping, steps };
+    };
+
     const renderTokenText = (tokens, plan, settledCount = 0, activeText = null) => {
         const settled = new Set(plan.steps.slice(0, settledCount).map(step => step.identifier));
         const active = plan.steps[settledCount];
@@ -247,6 +304,27 @@
         }).join('');
     };
 
+    const createCharacterMorphFrame = (sourceValue, targetValue, settledCharacters, random = Math.random) => {
+        const source = Array.from(String(sourceValue || ''));
+        const target = Array.from(String(targetValue || ''));
+        const total = Math.max(source.length, target.length);
+        const settled = Math.max(0, Math.min(total, Number(settledCharacters) || 0));
+        const output = [];
+        for (let index = 0; index < total; index++) {
+            if (index < settled) {
+                if (target[index] != null) output.push(target[index]);
+                continue;
+            }
+            if (index === settled && settled < total) {
+                const base = target[index] ?? source[index] ?? '';
+                output.push(/[A-Za-z0-9_]/.test(base) ? GLITCH_SYMBOLS[Math.floor(random() * GLITCH_SYMBOLS.length)] : base);
+                continue;
+            }
+            if (source[index] != null) output.push(source[index]);
+        }
+        return output.join('');
+    };
+
     return {
         TIMING,
         KEYWORDS,
@@ -255,7 +333,10 @@
         selectSourceSnippet,
         tokenizePreview,
         createIdentifierPlan,
+        createSequentialTokenPlan,
+        createProtectedPreviewPlan,
         renderTokenText,
-        createTokenGlitchFrame
+        createTokenGlitchFrame,
+        createCharacterMorphFrame
     };
 });

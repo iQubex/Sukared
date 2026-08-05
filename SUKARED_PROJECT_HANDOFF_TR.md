@@ -42,7 +42,7 @@ VM'nin görevi tüm scripti payload olarak `loadstring` ile çalıştırmak değ
 | Light | Tam uygulanmış | Available | Kapalı | 0 | Shift/byte string, en küçük çıktı, dead code/integrity/number hiding kapalı | Hazır |
 | Light+ | Tam uygulanmış | Available | Kapalı | 0 | Shift/byte/XOR, düşük dead code, integrity ve number hiding, hafif AST dönüşümleri | Hazır |
 | Good | Tam uygulanmış ve önerilen | Available/Recommended | Selective | min 24, hedef %20, max 180 | Güvenli decoder ailesi, budgeted VM, fallback, menu/event önceliği | Hazır |
-| Pro | Büyük ölçüde uygulanmış | Available/Experimental | Aggressive | min 64, hedef %40, max 400 | Daha geniş decoder ailesi, daha yüksek VM bütçeleri, maksimum uygun coverage hedefi | Deneysel; kullanıcı test etmeli |
+| Pro | Uygulanmış | Available | Aggressive | min 64, hedef %40, max 400 | Daha geniş koruma bütçeleri ve yüksek uygun-fonksiyon kapsaması | Gelişmiş profil; Good önerilen profil olarak kalır |
 | Hell | Kısmen uygulanmış | Unavailable | Hybrid/clustered test modu | min 128, hedef %65, max 800 | Shared clusters, segmented pools, fused/split opcodes, CFG/dispatch çeşitlendirme, nested prototype clustering | Hazır değil |
 | Blatant | Yalnızca profil politikası/placeholder | Unavailable | Uygulanmış public hat yok | min 256, hedef %85, max 1600 | Ayrı ve doğrulanmış ürün katmanları **belirsiz** | Hazır değil |
 | Fatality | Yalnızca profil politikası/placeholder | Unavailable | Uygulanmış public hat yok | hedef %100, teknik cap 5000 | Ayrı ve doğrulanmış ürün katmanları **belirsiz** | Hazır değil |
@@ -52,12 +52,12 @@ Profil ayrıntıları:
 - **Light:** Kasıtlı olarak VM kullanmaz; geniş uyumluluk ve küçük çıktı önceliklidir. Eksik katman VM'dir, ancak bu profil sözleşmesine uygundur. Güncel kabul matrisinde bilinen semantic hata yoktur.
 - **Light+:** VM kullanmaz; Light'tan daha fazla AST/string/number koruması uygular. Büyük scriptte output ve runtime maliyeti Light'tan yüksek olabilir; public matriste 1000-function fixture için 2.16x maksimum slowdown görülmüştür. Bilinen semantic mismatch yoktur.
 - **Good:** VM-uygun fonksiyonları seçer; desteklenmeyen veya bütçeyi aşan fonksiyonları geçerli normal Luau olarak bırakır. Fonksiyonsuz geçerli scriptler hata değildir. Eksik yönü universal VM coverage olmamasıdır; bu safe fallback ile açıkça raporlanır. Güncel regression'larda doğrulanmış semantic hata yoktur.
-- **Pro:** Daha yüksek oran ve maliyet bütçesiyle çalışır. Site üzerinde açıktır ancak `Experimental` uyarısı taşır. Eksikler, yeni scalable selector ile full public-beta matrisinin yeniden üretilmesi ve daha geniş gerçek Roblox doğrulamasıdır. Güncel regression'larda doğrulanmış semantic hata yoktur.
+- **Pro:** Daha yüksek oran ve maliyet bütçesiyle çalışır ve `Available` durumundadır. Good, performans ve uyumluluk dengesi nedeniyle önerilen profil olarak kalır. Güncel tam regresyon zincirinde doğrulanmış semantic hata yoktur.
 - **Hell:** Production bileşenlerine ve test endpoint override'ına sahiptir, fakat `HELL_ENABLED=false` ve normal sitede seçilemez. Eksikleri semantic-recovery eşikleri ve tam acceptance matrisidir. Bilinen blocker oranları opcode `0.125`, constant/control-flow/call `1.0`'dır.
 - **Blatant:** Merkezi %85 seçim policy'si ve kilitli UI kartı dışında ayrı bir public implementation/acceptance contract yoktur. Eksik özelliklerin kapsamı ve profile özel VM farkı **belirsizdir**. Kullanıma hazır değildir.
 - **Fatality:** Merkezi %100 policy ve teknik safety cap dışında ayrı bir public implementation/acceptance contract yoktur. Eksik özelliklerin kapsamı **belirsizdir**. Kullanıma hazır değildir.
 
-Şu anda kullanıcılara açık en yüksek profil: **Pro (Experimental)**.  
+Şu anda kullanıcılara açık en yüksek profil: **Pro (Available)**.  
 Önerilen stabil profil: **Good**.  
 Geliştirilmekte olan profil: **Hell**.  
 Bir sonraki aktivasyon hedefi: **Hell Experimental**.  
@@ -145,7 +145,7 @@ Hell açılmadan önce semantic recovery eşikleri, tam seed/scale acceptance ma
 
 Bu oranlar ürün bileşenleri ağırlıklandırılarak hazırlanmış mühendislik tahminidir; test pass yüzdesi değildir.
 
-- Pro profili: **%90**. Ana VM, closure/control-flow, aggressive budget, real runtime ve büyük-script testleri mevcut. Experimental etiketi, tam yeni scaling acceptance matrisi ve daha geniş gerçek Roblox doğrulaması eksik.
+- Pro profili: **Available**. Ana VM, closure/control-flow, aggressive budget, native runtime ve tam regresyon zinciri doğrulandı. Good, daha düşük maliyeti nedeniyle önerilen profil olarak kalır.
 - Hedef Hell profili: **%65**. Hybrid runtime ve çeşitlendirme çalışıyor; semantic recovery eşikleri, full seed/scale acceptance ve public operational gate geçilmedi.
 - SukaRed v1.0 bütünü: **%82**. Kontrollü beta çekirdeği hazır; production account/credit provider, güvenli arbitrary Roblox runtime sandbox ve üst profiller eksik.
 - VM sistemi: **%86**. Register VM, loops, closures, methods, varargs, clustering ve validation mevcut; tüm AST türleri ve yield sınırları için universal VM coverage yok.
@@ -337,7 +337,7 @@ Hedef profil: Hell Experimental.
 Özet:
 
 ```text
-Mevcut açık profil: Pro (Experimental); önerilen stabil profil Good
+Mevcut açık profil: Pro (Available); önerilen stabil profil Good
 Geliştirilmekte olan profil: Hell
 Hedef profil: Hell Experimental
 Hedef profile tahmini kalan oran: %35
@@ -363,7 +363,7 @@ Sıradaki önerilen adım: semantic analyzer'ın kolay geri kazandığı constan
 
 SukaRed 1.0, Node.js/Express tabanlı bir Lua/Luau obfuscator servisidir. Amaç “kırılamazlık” iddiası değil, AST dönüşümleri, constant/string protection ve gerçek function-level VM virtualization ile tersine mühendislik maliyetini artırmaktır. Repository kökü `C:\Users\missk\Desktop\Important\Obfuscator`, backend `Backend`, frontend ise root `index.html`, `style.css` ve `app/*` dosyalarındadır. Ürün sürümü her yerde `SukaRed 1.0` olarak tutulmalıdır.
 
-Public profil sırası Light, Light+, Good, Pro, Hell, Blatant, Fatality'dir. Light ve Light+ available ve VM'sizdir. Good available/recommended olup selective budgeted VM kullanır. Pro available fakat Experimental'dır ve aggressive VM kullanır. Hell, Blatant ve Fatality normal kullanıcıya kapalıdır. Kullanıcıya açık en yüksek profil Pro, önerilen stabil profil Good, geliştirilmekte olan ve sıradaki aktivasyon hedefi Hell Experimental'dır. Blatant/Fatality yalnızca merkezi budget policy ve kilitli UI placeholder düzeyindedir; bağımsız kabul edilmiş pipeline'ları yoktur.
+Public profil sırası Light, Light+, Good, Pro, Hell, Blatant, Fatality'dir. Light ve Light+ available ve VM'sizdir. Good available/recommended olup selective budgeted VM kullanır. Pro available ve aggressive VM kullanır. Hell, Blatant ve Fatality normal kullanıcıya kapalıdır. Kullanıcıya açık en yüksek profil Pro, önerilen stabil profil Good, geliştirilmekte olan ve sıradaki aktivasyon hedefi Hell Experimental'dır. Blatant/Fatality yalnızca merkezi budget policy ve kilitli UI placeholder düzeyindedir; bağımsız kabul edilmiş pipeline'ları yoktur.
 
 Production pipeline public profil normalizasyonu, Luau preprocess, AST parse/scope analysis, function selection, AST -> IR -> custom bytecode compilation, function body replacement, generated interpreter/constant pool üretimi, dead-code, uygun post-AST dönüşümleri, decoder attachment, minification ve output validation sırasını izler. VM tüm scripti encoded payload/loadstring olarak çalıştırmaz. Seçilen function body generated normal Lua içinden kaldırılır ve register + instruction pointer kullanan custom interpreter tarafından yürütülür.
 

@@ -2,7 +2,7 @@
     'use strict';
 
     const state = {
-        input: '-- Paste your Luau script here\nprint("Hello SukaRed")', output: '', sourceName: null,
+        input: '-- Paste your Luau script here\nprint("Hello Luavex")', output: '', sourceName: null,
         sourceOrigin: 'editor', modified: false, build: null, monacoReady: null
     };
     const profileNames = { light: 'Light', light_plus: 'Light+', good: 'Good', pro: 'Pro' };
@@ -102,7 +102,7 @@
         });
         outlet.querySelector('#clearBtn').addEventListener('click', () => { setInput(''); setOutput(''); state.sourceName = null; state.sourceOrigin = 'editor'; state.modified = false; state.build = null; updateFileState(); updateOutputActions(); buildSummary(outlet.querySelector('#buildSummary'), null); errorPanel.hidden = true; });
         copyButton.addEventListener('click', async () => { if (!getOutput()) return; await navigator.clipboard.writeText(getOutput()); window.SukaRedUI.toast('Output copied', 'success'); });
-        downloadButton.addEventListener('click', () => { if (!getOutput()) return; const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([getOutput()], { type: 'text/plain;charset=utf-8' })); link.download = `${safeFilename(state.sourceName)}.sukared.lua`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 0); });
+        downloadButton.addEventListener('click', () => { if (!getOutput()) return; const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([getOutput()], { type: 'text/plain;charset=utf-8' })); link.download = `${safeFilename(state.sourceName)}.luavex.lua`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 0); });
 
         obfuscate.addEventListener('click', async () => {
             const code = getInput(); if (!code.trim()) { window.SukaRedUI.toast('Input is empty.', 'warning'); return; } if (window.SukaRedTransition.active) return;

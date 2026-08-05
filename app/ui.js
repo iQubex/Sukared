@@ -2,10 +2,13 @@
     'use strict';
 
     const profiles = Object.freeze([
-        { id: 'light', name: 'Light', level: 'Low', cost: 0, status: 'Available', description: 'Compact protection for quick builds.', enabled: true },
-        { id: 'light_plus', name: 'Light+', level: 'Medium', cost: 0, status: 'Available', description: 'Balanced output size and protection.', enabled: true },
-        { id: 'good', name: 'Good', level: 'High', cost: 0, status: 'Recommended', description: 'Selective VM protection for releases.', enabled: true },
-        { id: 'pro', name: 'Pro', level: 'Maximum', cost: 0, status: 'Experimental', description: 'Maximum eligible VM coverage within production budgets.', enabled: true }
+        { id: 'light', name: 'Light', level: 'Low', intensity: 1, cost: 0, status: 'Available', description: 'Compact protection for quick builds.', enabled: true },
+        { id: 'light_plus', name: 'Light+', level: 'Medium', intensity: 2, cost: 0, status: 'Available', description: 'Balanced output size and protection.', enabled: true },
+        { id: 'good', name: 'Good', level: 'High', intensity: 3, cost: 0, status: 'Recommended', description: 'Recommended balance between protection, performance and compatibility.', enabled: true },
+        { id: 'pro', name: 'Pro', level: 'Maximum', intensity: 4, cost: 0, status: 'Available', description: 'Advanced protection profile for users requiring stronger protection.', enabled: true },
+        { id: 'hell', name: 'Hell', level: 'Extreme', intensity: 5, status: 'Coming Soon', description: 'Experimental maximum protection profile for high-value scripts.', enabled: false },
+        { id: 'blatant', name: 'Blatant', level: 'Severe', intensity: 6, status: 'Future', description: 'Aggressive structural protection.', enabled: false },
+        { id: 'fatality', name: 'Fatality', level: 'Ultimate', intensity: 7, status: 'Future', description: 'Highest-intensity protection profile.', enabled: false }
     ]);
 
     const el = (tag, className, text) => {
@@ -23,16 +26,22 @@
             const card = el('button', `profile-card${selected === profile.id ? ' is-selected' : ''}`);
             card.type = 'button';
             card.dataset.profile = profile.id;
+            card.dataset.intensity = String(profile.intensity);
             card.setAttribute('role', 'radio');
             card.setAttribute('aria-checked', String(selected === profile.id));
+            card.disabled = !profile.enabled;
+            card.setAttribute('aria-disabled', String(!profile.enabled));
             const head = el('span', 'profile-card-head');
             const title = el('strong', 'profile-title', profile.name);
+            const signal = el('span', 'profile-signal');
+            signal.setAttribute('aria-hidden', 'true');
+            for (let index = 0; index < profile.intensity; index++) signal.append(el('i'));
             const marker = el('span', 'profile-check'); marker.append(window.SukaRedIcons.icon('check', { size: 15 }));
-            head.append(title, marker);
+            head.append(title, signal, marker);
             const meta = el('span', 'profile-card-meta');
-            meta.append(el('span', 'protection-level', profile.level), el('span', 'profile-status', profile.status), el('span', 'profile-cost', profile.cost === 0 ? 'FREE' : `${profile.cost} credits`));
+            meta.append(el('span', 'protection-level', profile.level), el('span', 'profile-status', profile.status), el('span', 'profile-cost', profile.enabled ? (profile.cost === 0 ? 'FREE' : `${profile.cost} credits`) : 'LOCKED'));
             card.append(head, el('span', 'profile-description', profile.description), meta);
-            card.addEventListener('click', () => onSelect(profile.id));
+            if (profile.enabled) card.addEventListener('click', () => onSelect(profile.id));
             grid.append(card);
         });
         return grid;

@@ -19,47 +19,78 @@
             return node;
         });
 
-        const updateIdentifier = (identifier, value, className) => {
-            tokens.forEach((token, index) => {
-                if (token.value !== identifier) return;
-                nodes[index].textContent = value;
-                if (nodes[index].classList) {
-                    nodes[index].classList.toggle('is-active', className === 'active');
-                    nodes[index].classList.toggle('is-transformed', className === 'transformed');
-                }
-            });
+        const updateToken = (index, value, className) => {
+            const node = nodes[index];
+            if (!node?.classList) return;
+            node.textContent = value;
+            node.classList.toggle('is-active', className === 'active');
+            node.classList.toggle('is-transformed', className === 'transformed');
         };
-        return { nodes, updateIdentifier };
+        return { nodes, updateToken };
     };
 
     const begin = source => {
         if (active) return null;
 
-        const snippet = window.SukaRedMotion.selectSourceSnippet(source);
+        const snippet = window.SukaRedMotion.selectSourceSnippet(source) || 'local protected = {}';
         const tokens = window.SukaRedMotion.tokenizePreview(snippet);
-        const plan = window.SukaRedMotion.createIdentifierPlan(tokens);
+        const plan = window.SukaRedMotion.createProtectedPreviewPlan(tokens);
+        const totalCharacters = plan.steps.reduce((sum, step) => sum + Math.max(1, step.characterCount), 0);
         const overlay = document.createElement('div');
         overlay.className = 'build-transition';
         const panel = document.createElement('section');
         panel.className = 'transition-panel';
         panel.setAttribute('role', 'status');
         panel.setAttribute('aria-live', 'polite');
+
         const header = document.createElement('header');
         const title = document.createElement('span');
-        title.textContent = 'BUILDING';
+        title.className = 'transition-title';
+        title.textContent = 'LUAVEX / BUILD';
         const state = document.createElement('span');
         state.className = 'transition-state';
         state.textContent = 'PREPARING';
         header.append(title, state);
+
+        const codeFrame = document.createElement('div');
+        codeFrame.className = 'transition-code-frame';
+        const lineNumbers = document.createElement('div');
+        lineNumbers.className = 'transition-line-numbers';
+        lineNumbers.setAttribute('aria-hidden', 'true');
+        const lineCount = Math.max(1, snippet.split('\n').length);
+        for (let line = 1; line <= lineCount; line++) {
+            const value = document.createElement('span');
+            value.textContent = String(line).padStart(2, '0');
+            lineNumbers.append(value);
+        }
         const pre = document.createElement('pre');
         pre.setAttribute('aria-hidden', 'true');
         const renderer = createTokenRenderer(pre, tokens);
+        codeFrame.append(lineNumbers, pre);
+
+        const progress = document.createElement('div');
+        progress.className = 'transition-progress';
+        progress.setAttribute('aria-hidden', 'true');
+        const progressValue = document.createElement('span');
+        progress.append(progressValue);
+        const footer = document.createElement('footer');
+        const queueLabel = document.createElement('span');
+        queueLabel.textContent = `${lineCount} LINE${lineCount === 1 ? '' : 'S'} QUEUED`;
+        const progressLabel = document.createElement('span');
+        progressLabel.textContent = '0%';
+        footer.append(queueLabel, progressLabel);
         const announcement = document.createElement('p');
         announcement.className = 'sr-only';
         announcement.textContent = 'Obfuscation build started';
-        panel.append(header, pre, announcement);
+        panel.append(header, codeFrame, progress, footer, announcement);
         overlay.append(panel);
         document.body.append(overlay);
+
+        const setProgress = completed => {
+            const value = Math.max(0, Math.min(100, Math.round((completed / Math.max(1, totalCharacters)) * 100)));
+            progressValue.style.width = `${value}%`;
+            progressLabel.textContent = `${value}%`;
+        };
 
         requestAnimationFrame(() => overlay.classList.add('is-open'));
         const minimumReady = (async () => {
@@ -67,7 +98,8 @@
             if (reducedMotion()) {
                 await delay(timing.reducedPreview);
                 state.textContent = 'TRANSFORMING';
-                plan.steps.forEach(step => renderer.updateIdentifier(step.identifier, step.replacement, 'transformed'));
+                plan.steps.forEach(step => renderer.updateToken(step.tokenIndex, step.replacement, 'transformed'));
+                setProgress(totalCharacters);
                 await delay(timing.reducedTransform);
                 state.textContent = 'PROCESSING';
                 return;
@@ -75,14 +107,25 @@
 
             await delay(timing.transitionOpen + timing.transitionPreview);
             state.textContent = 'TRANSFORMING';
+            let completedCharacters = 0;
+            const characterDelay = Math.max(5, Math.min(timing.characterStep, Math.floor(1800 / Math.max(1, totalCharacters))));
+            const corruptDelay = Math.max(8, Math.min(Math.floor(timing.tokenCorrupt / 2), Math.floor(650 / Math.max(1, plan.steps.length))));
+            const settleDelay = Math.max(6, Math.min(timing.tokenSettle, Math.floor(600 / Math.max(1, plan.steps.length))));
             for (const step of plan.steps) {
-                renderer.updateIdentifier(step.identifier, window.SukaRedMotion.createTokenGlitchFrame(step.identifier, .45), 'active');
-                await delay(Math.floor(timing.tokenCorrupt / 2));
-                renderer.updateIdentifier(step.identifier, window.SukaRedMotion.createTokenGlitchFrame(step.identifier, .9), 'active');
-                await delay(Math.ceil(timing.tokenCorrupt / 2));
-                renderer.updateIdentifier(step.identifier, step.replacement, 'transformed');
-                await delay(timing.tokenSettle);
+                renderer.updateToken(step.tokenIndex, window.SukaRedMotion.createTokenGlitchFrame(step.source, .38), 'active');
+                await delay(corruptDelay);
+                renderer.updateToken(step.tokenIndex, window.SukaRedMotion.createTokenGlitchFrame(step.source, .62), 'active');
+                await delay(corruptDelay);
+                for (let character = 0; character < step.characterCount; character++) {
+                    renderer.updateToken(step.tokenIndex, window.SukaRedMotion.createCharacterMorphFrame(step.source, step.replacement, character), 'active');
+                    setProgress(completedCharacters + character + 1);
+                    await delay(characterDelay);
+                }
+                renderer.updateToken(step.tokenIndex, step.replacement, 'transformed');
+                completedCharacters += Math.max(1, step.characterCount);
+                await delay(settleDelay);
             }
+            setProgress(totalCharacters);
             await delay(timing.transitionFinal);
             state.textContent = 'PROCESSING';
         })();

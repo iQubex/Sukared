@@ -28,4 +28,4 @@ http.createServer((req, res) => {
         return;
     }
     send(res, path.join(root, 'index.html'));
-}).listen(port, '127.0.0.1', () => console.log(`SukaRed frontend listening on ${port}`));
+}).listen(port, '127.0.0.1', () => console.log(`Luavex frontend listening on ${port}`));

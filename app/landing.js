@@ -2,33 +2,57 @@
     'use strict';
 
     const SESSION_KEY = 'sukared.boot.seen';
-    const finalWord = 'SUKARED';
-    const symbols = '#$%&*+?@';
     const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches || !window.SukaRedSettings.load().animations;
 
     const mount = (outlet) => {
         const seen = sessionStorage.getItem(SESSION_KEY) === '1';
+        const skipIntro = seen || reducedMotion();
         const page = document.createElement('section');
-        page.className = 'boot-page';
-        page.setAttribute('aria-labelledby', 'bootWordmark');
-        const center = document.createElement('div'); center.className = 'boot-center';
-        const wordmark = document.createElement('h1'); wordmark.id = 'bootWordmark'; wordmark.className = 'boot-wordmark'; wordmark.textContent = finalWord;
-        const status = document.createElement('p'); status.className = 'sr-only'; status.setAttribute('aria-live', 'polite'); status.textContent = 'SukaRed ready';
-        const start = document.createElement('button'); start.className = 'boot-start'; start.type = 'button'; start.textContent = 'START'; start.hidden = !seen && !reducedMotion();
-        center.append(wordmark, start, status); page.append(center); outlet.replaceChildren(page);
+        page.className = `boot-page${skipIntro ? ' is-ready' : ' is-intro'}`;
+        page.setAttribute('aria-labelledby', 'bootTitle');
+
+        const center = document.createElement('div');
+        center.className = 'boot-center';
+        const logoFrame = document.createElement('div');
+        logoFrame.className = 'boot-logo-frame';
+        const logo = document.createElement('img');
+        logo.className = 'boot-logo';
+        logo.src = '/assets/luavex-brand.png';
+        logo.alt = 'Luavex';
+        logo.decoding = 'async';
+        logoFrame.append(logo);
+
+        const title = document.createElement('h1');
+        title.id = 'bootTitle';
+        title.className = 'sr-only';
+        title.textContent = 'Luavex Beta';
+        const edition = document.createElement('span');
+        edition.className = 'boot-edition';
+        edition.textContent = 'PUBLIC BETA';
+        const start = document.createElement('button');
+        start.className = 'boot-start';
+        start.type = 'button';
+        start.textContent = 'START';
+        start.hidden = !skipIntro;
+        const status = document.createElement('p');
+        status.className = 'sr-only';
+        status.setAttribute('aria-live', 'polite');
+        status.textContent = skipIntro ? 'Luavex ready' : 'Luavex is loading';
+
+        center.append(logoFrame, edition, start, title, status);
+        page.append(center);
+        outlet.replaceChildren(page);
 
         let timer = null;
-        if (!seen && !reducedMotion()) {
-            wordmark.textContent = symbols.slice(0, finalWord.length);
-            const started = performance.now();
-            timer = setInterval(() => {
-                const progress = Math.min(1, (performance.now() - started) / window.SukaRedMotion.TIMING.bootTotal);
-                const locked = Math.floor(progress * (finalWord.length + 1));
-                wordmark.textContent = Array.from(finalWord, (letter, index) => index < locked ? letter : symbols[Math.floor(Math.random() * symbols.length)]).join('');
-                if (progress >= 1) {
-                    clearInterval(timer); timer = null; wordmark.textContent = finalWord; start.hidden = false; start.focus({ preventScroll: true });
-                }
-            }, window.SukaRedMotion.TIMING.bootFrame);
+        if (!skipIntro) {
+            timer = setTimeout(() => {
+                timer = null;
+                page.classList.remove('is-intro');
+                page.classList.add('is-ready');
+                start.hidden = false;
+                status.textContent = 'Luavex ready';
+                start.focus({ preventScroll: true });
+            }, window.SukaRedMotion.TIMING.bootTotal);
         }
 
         start.addEventListener('click', () => {
@@ -37,7 +61,7 @@
             const delay = reducedMotion() ? 0 : window.SukaRedMotion.TIMING.landingExit;
             setTimeout(() => window.sukaredApp.router.navigate('/workspace'), delay);
         });
-        return () => { if (timer) clearInterval(timer); };
+        return () => { if (timer) clearTimeout(timer); };
     };
 
     window.SukaRedLanding = { mount, SESSION_KEY };

@@ -48,7 +48,7 @@
         action('Copy Build ID', async () => { await navigator.clipboard.writeText(record.buildId || record.id); toast('Build ID copied', 'success'); });
         if (record.outputAvailable) {
             action('Copy Output', async () => { await navigator.clipboard.writeText(record.outputText); toast('Output copied', 'success'); });
-            action('Download Output', () => downloadText(`${record.sourceName.replace(/\.(lua|luau)$/i, '')}.sukared.lua`, record.outputText));
+            action('Download Output', () => downloadText(`${record.sourceName.replace(/\.(lua|luau)$/i, '')}.luavex.lua`, record.outputText));
         }
         action('Rename', () => {
             const wrap = el('label', 'field-row');
@@ -89,7 +89,7 @@
         const importInput = document.createElement('input'); importInput.type = 'file'; importInput.accept = 'application/json,.json'; importInput.hidden = true;
         const button = (label, handler) => { const item = el('button', 'button', label); item.type = 'button'; item.addEventListener('click', handler); return item; };
         management.append(
-            button('Export Metadata', async () => downloadText('sukared-history-metadata.json', JSON.stringify(await store.exportMetadata(), null, 2), 'application/json')),
+            button('Export Metadata', async () => downloadText('luavex-history-metadata.json', JSON.stringify(await store.exportMetadata(), null, 2), 'application/json')),
             button('Import Metadata', () => importInput.click()), importInput,
             button('History Settings', () => window.sukaredApp.router.navigate('/settings?section=history')),
             button('Clear History', async () => { if (await confirm('Clear all history?', 'This permanently removes local history and retained outputs.')) { await store.clearAll(); toast('History cleared', 'success'); renderList(); } })
