@@ -5,11 +5,21 @@
         input: '-- Paste your Luau script here\nprint("Hello Luavex")', output: '', sourceName: null,
         sourceOrigin: 'editor', modified: false, build: null, monacoReady: null
     };
-    const profileNames = { light: 'Light', light_plus: 'Light+', good: 'Good', pro: 'Pro' };
-    const apiUrl = () => ['localhost', '127.0.0.1', ''].includes(location.hostname) ? 'http://localhost:3000/obfuscate' : 'https://sukared-backend.onrender.com/obfuscate';
+    const profileNames = { light: 'Light', light_plus: 'Light+', good: 'Good', pro: 'Pro', hell: 'Hell' };
+    const apiUrl = () => `${window.LuavexAPI.base}/obfuscate`;
     const bytes = value => new Blob([String(value || '')]).size;
     const formatBytes = value => { const size = Number(value) || 0; if (size < 1024) return `${size} B`; if (size < 1048576) return `${(size / 1024).toFixed(size < 10240 ? 1 : 0)} KB`; return `${(size / 1048576).toFixed(1)} MB`; };
     const safeFilename = value => String(value || 'Untitled-Script').replace(/\.(lua|luau)$/i, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100) || 'Untitled-Script';
+    const buildErrorMessage = (code, fallback) => ({
+        AUTH_REQUIRED: 'Connect Discord before starting a build.',
+        SOURCE_REQUIRED: 'Add Luau source code before starting a build.',
+        PROFILE_UNAVAILABLE: 'The selected profile is not available in this environment.',
+        RATE_LIMITED: 'Too many build requests. Wait a moment and try again.',
+        QUEUE_FULL: 'The build queue is currently full. Try again shortly.',
+        BUILD_TIMEOUT: 'The build exceeded its time limit. Your source was not stored.',
+        WORKER_CRASH: 'The isolated build worker stopped unexpectedly. Try the build again.',
+        NETWORK_ERROR: 'The build server could not be reached. Check that the backend is online.'
+    }[code] || (code === 'BUILD_FAILED' ? 'The build could not be completed. Check the source syntax and try again.' : fallback || 'The build could not be completed.'));
 
     const loadMonaco = () => {
         if (state.monacoReady) return state.monacoReady;
@@ -35,6 +45,7 @@
             ['Build ID', build.buildId], ['VM Applied', build.vmApplied ? 'Yes' : 'No'], ['Virtualized Functions', `${build.virtualizedFunctions || 0} / ${build.eligibleFunctions || 0}`],
             ['AST Coverage', build.astCoveragePercent == null ? '-' : `${build.astCoveragePercent}%`], ['Clustered Functions', build.clusteredFunctions],
             ['VM Instructions', build.vmInstructionCount], ['Fallback Functions', build.fallbackFunctions], ['Runtime', build.runtimeVersion || '-'],
+            ['Adaptive Analysis', build.adaptiveAnalysisEnabled ? 'Enabled' : 'Disabled'],
             ['Internal Profile', build.internalProfile || build.profile], ['Reason Summary', build.skippedByReason ? Object.entries(build.skippedByReason).map(([reason, count]) => `${count} ${reason}`).join(', ') : 'None']
         ].forEach(([label, value]) => { const item = document.createElement('div'); item.append(window.SukaRedUI.el('dt', '', label), window.SukaRedUI.el('dd', '', value == null ? '-' : String(value))); technical.append(item); });
         details.append(technical); container.append(dl, details);
@@ -48,7 +59,7 @@
                     <header><div><span id="inputLabel">INPUT</span><small class="file-state" id="fileState">Editor buffer</small></div><div class="editor-actions"><button class="icon-button" id="openFileBtn" type="button" aria-label="Open source file" title="Open source file"></button><button class="icon-button" id="clearBtn" type="button" aria-label="Clear input" title="Clear input"></button></div></header>
                     <input id="fileInput" type="file" accept=".lua,.luau,text/plain" hidden><div class="editor-host" id="inputEditor"></div><textarea class="editor-fallback" id="inputFallback" aria-label="Input code"></textarea>
                 </section>
-                <div class="build-controls"><button class="center-settings" id="dashboardSettings" type="button"><span class="settings-icon-slot"></span><span>Settings</span></button><button class="obfuscate-button" id="obfuscateBtn" type="button" aria-label="Obfuscate source" title="Obfuscate source"><span class="run-icon-slot"></span><span class="spinner"></span></button><small id="profileSummary"></small></div>
+                <div class="build-controls"><button class="center-settings" id="dashboardSettings" type="button"><span class="settings-icon-slot"></span><span>Settings</span></button><button class="obfuscate-button" id="obfuscateBtn" type="button" aria-label="Obfuscate source" title="Connect Discord to obfuscate" disabled><span class="run-icon-slot"></span><span class="spinner"></span></button><small id="profileSummary"></small><small class="auth-build-note" id="authBuildNote">Connect Discord to build</small></div>
                 <section class="editor-panel" aria-labelledby="outputLabel">
                     <header><div><span id="outputLabel">OUTPUT</span><small id="outputState">No build yet</small></div><div class="editor-actions"><button class="icon-button" id="copyOutput" type="button" aria-label="Copy output" title="Copy output"></button><button class="icon-button" id="downloadOutput" type="button" aria-label="Download output" title="Download output"></button></div></header>
                     <div class="editor-host" id="outputEditor"></div><textarea class="editor-fallback" id="outputFallback" readonly aria-label="Output code"></textarea>
@@ -90,9 +101,17 @@
         const setInput = value => { state.input = value; inputEditor ? inputEditor.setValue(value) : (inputFallback.value = value); };
         const getOutput = () => outputEditor ? outputEditor.getValue() : outputFallback.value;
         const setOutput = value => { state.output = value; outputEditor ? outputEditor.setValue(value) : (outputFallback.value = value); };
-        const updateFileState = () => { fileState.textContent = state.sourceName ? `${state.sourceName}${state.modified ? ' · Modified' : ''}` : 'Editor buffer'; };
+        const updateFileState = () => { fileState.textContent = state.sourceName ? `${state.sourceName}${state.modified ? ' / Modified' : ''}` : 'Editor buffer'; };
         const updateOutputActions = () => { const available = Boolean(getOutput()); copyButton.disabled = !available; downloadButton.disabled = !available; outlet.querySelector('#outputState').textContent = available ? formatBytes(bytes(getOutput())) : 'No build yet'; };
         updateFileState(); updateOutputActions();
+        const authBuildNote = outlet.querySelector('#authBuildNote');
+        const applyAuth = auth => {
+            const blocked = !auth.authenticated;
+            if (!obfuscate.classList.contains('is-processing')) obfuscate.disabled = blocked;
+            obfuscate.title = blocked ? 'Connect Discord to obfuscate' : 'Obfuscate source';
+            authBuildNote.textContent = blocked ? 'Connect Discord to build' : `Signed in as ${auth.account.displayName || auth.account.username}`;
+        };
+        const unsubscribeAuth = window.LuavexAuth.subscribe(applyAuth);
 
         outlet.querySelector('#dashboardSettings').addEventListener('click', event => window.SukaRedUI.openSettingsModal(event.currentTarget));
         outlet.querySelector('#openFileBtn').addEventListener('click', () => outlet.querySelector('#fileInput').click());
@@ -105,35 +124,46 @@
         downloadButton.addEventListener('click', () => { if (!getOutput()) return; const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([getOutput()], { type: 'text/plain;charset=utf-8' })); link.download = `${safeFilename(state.sourceName)}.luavex.lua`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 0); });
 
         obfuscate.addEventListener('click', async () => {
+            if (!window.LuavexAuth.state.authenticated) { window.LuavexAuth.login(); return; }
             const code = getInput(); if (!code.trim()) { window.SukaRedUI.toast('Input is empty.', 'warning'); return; } if (window.SukaRedTransition.active) return;
-            const currentSettings = window.SukaRedSettings.load(); const transition = window.SukaRedTransition.begin(code);
+            const currentSettings = window.SukaRedSettings.load();
+            if (currentSettings.profile === 'hell') {
+                const accepted = await window.SukaRedUI.confirm(
+                    'Hell Experimental',
+                    'Hell is an experimental maximum protection profile.\n\nHigher build time and resource usage may occur.\n\nRecommended for high-value scripts.'
+                );
+                if (!accepted) return;
+            }
+            const transition = window.SukaRedTransition.begin(code);
             const id = crypto.randomUUID ? crypto.randomUUID() : `LOCAL-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            let sourceName = state.sourceName;
-            if (!sourceName) { const untitled = (await historyStore.list()).filter(item => /^Untitled Script/.test(item.sourceName)).length; sourceName = `Untitled Script${untitled ? ` ${untitled + 1}` : ''}`; }
-            const record = { id, buildId: '', createdAt: new Date().toISOString(), completedAt: null, status: 'building', profile: profileNames[currentSettings.profile], sourceName, sourceOrigin: state.sourceOrigin, sourceBytes: bytes(code), outputAvailable: false, outputText: null, creditCharged: false, metadata: {} };
-            try { await historyStore.put(record); } catch (_) { window.SukaRedUI.toast('History storage unavailable.', 'warning'); }
             status.textContent = 'Processing'; status.className = 'workspace-status is-processing'; obfuscate.disabled = true; obfuscate.classList.add('is-processing'); errorPanel.hidden = true;
-            const started = Date.now();
+            let polling = true;
+            const pollStatus = async () => {
+                while (polling) {
+                    try {
+                        const payload = await window.LuavexAPI.request(`/builds/status/${encodeURIComponent(id)}`);
+                        transition?.setStage(payload.status.stage, payload.status);
+                    } catch (_) { /* status may not exist until the request is accepted */ }
+                    await new Promise(resolve => setTimeout(resolve, 550));
+                }
+            };
+            pollStatus();
             try {
-                const response = await fetch(apiUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-idempotency-key': id }, body: JSON.stringify({ code, profile: currentSettings.profile }) });
+                const response = await fetch(apiUrl(), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'x-idempotency-key': id }, body: JSON.stringify({ code, profile: currentSettings.profile }) });
                 const data = await response.json().catch(() => ({}));
-                if (!response.ok) { const error = new Error(data.details || data.message || response.statusText || 'Build failed.'); error.code = data.code || 'BUILD_FAILED'; error.build = data.build; throw error; }
-                await transition.minimumReady; setOutput(data.obfuscated || ''); updateOutputActions(); state.build = data.build || {}; buildSummary(outlet.querySelector('#buildSummary'), state.build);
-                const keepOutput = currentSettings.keepOutputs && bytes(data.obfuscated) <= 2 * 1024 * 1024;
-                if (currentSettings.keepOutputs && !keepOutput) window.SukaRedUI.toast('Output is too large to retain locally.', 'warning');
-                await historyStore.update(id, { buildId: data.build?.buildId || id, completedAt: new Date().toISOString(), status: 'completed', outputBytes: data.build?.outputBytes ?? bytes(data.obfuscated), buildTimeMs: data.build?.processingTimeMs ?? Date.now() - started, vmApplied: data.build?.vmApplied ?? false, virtualizedFunctions: data.build?.virtualizedFunctions, eligibleFunctions: data.build?.eligibleFunctions, coveragePercent: data.build?.functionCoveragePercent, astCoveragePercent: data.build?.astCoveragePercent, runtimeVersion: data.build?.runtimeVersion || null, outputAvailable: keepOutput, outputText: keepOutput ? data.obfuscated : null, metadata: { fallbackFunctions: data.build?.fallbackFunctions, skippedByReason: data.build?.skippedByReason || {}, internalProfile: data.build?.internalProfile, vmInstructionCount: data.build?.vmInstructionCount, clusteredFunctions: data.build?.clusteredFunctions } });
+                if (!response.ok) { const error = new Error(data.message || 'Build failed.'); error.code = data.code || 'BUILD_FAILED'; error.build = data.build; throw error; }
+                setOutput(data.obfuscated || ''); updateOutputActions(); state.build = data.build || {}; buildSummary(outlet.querySelector('#buildSummary'), state.build);
                 status.textContent = 'Completed'; status.className = 'workspace-status is-completed'; await transition.close('success'); window.SukaRedUI.toast('Build completed', 'success');
             } catch (error) {
-                const codeValue = error.code || (error.name === 'AbortError' ? 'CANCELLED' : 'NETWORK_ERROR'); const timeout = codeValue === 'BUILD_TIMEOUT';
-                const failureStage = timeout ? 'timeout' : (codeValue === 'NETWORK_ERROR' ? 'network' : (codeValue === 'CANCELLED' ? 'cancelled' : (codeValue.includes('QUEUE') ? 'queue' : (codeValue.includes('WORKER') ? 'worker' : (codeValue.includes('VM') ? 'virtualization' : (/\[\d+:\d+\]/.test(error.message) ? 'parsing' : (codeValue.startsWith('SOURCE_') || codeValue.startsWith('PROFILE_') ? 'validation' : 'transformation')))))));
-                await historyStore.update(id, { buildId: error.build?.buildId || `LOCAL-FAIL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, completedAt: new Date().toISOString(), status: timeout ? 'timeout' : 'failed', buildTimeMs: Date.now() - started, errorCode: codeValue, errorMessage: error.message, failureStage, creditCharged: false, outputAvailable: false, outputText: null }).catch(() => window.SukaRedUI.toast('Build failed, but history could not be saved.', 'warning'));
-                errorPanel.hidden = false; errorPanel.querySelector('pre').textContent = `${codeValue}\n${error.message}\nAttempted API URL: ${apiUrl()}`; status.textContent = 'Error'; status.className = 'workspace-status is-error'; await transition?.close('error'); window.SukaRedUI.toast('Build failed', 'error');
-            } finally { obfuscate.disabled = false; obfuscate.classList.remove('is-processing'); }
+                const codeValue = error.code || (error.name === 'AbortError' ? 'CANCELLED' : 'NETWORK_ERROR');
+                errorPanel.hidden = false; errorPanel.querySelector('pre').textContent = `${codeValue}\n${buildErrorMessage(codeValue, error.message)}\nAttempted API URL: ${apiUrl()}`; status.textContent = 'Error'; status.className = 'workspace-status is-error'; await transition?.close('error'); window.SukaRedUI.toast('Build failed', 'error');
+                if (codeValue === 'AUTH_REQUIRED') await window.LuavexAuth.refresh();
+            } finally { polling = false; obfuscate.classList.remove('is-processing'); applyAuth(window.LuavexAuth.state); }
         });
 
         const settingsListener = event => { const value = event.detail; outlet.querySelector('#profileSummary').textContent = profileNames[value.profile]; inputEditor?.updateOptions({ wordWrap: value.wordWrap ? 'on' : 'off', minimap: { enabled: value.minimap } }); outputEditor?.updateOptions({ wordWrap: value.wordWrap ? 'on' : 'off', minimap: { enabled: value.minimap } }); layoutEditors(); };
         window.addEventListener('sukared:settings', settingsListener);
-        return () => { state.input = getInput(); state.output = getOutput(); disposed = true; window.removeEventListener('sukared:settings', settingsListener); window.removeEventListener('resize', layoutEditors); dprQuery?.removeEventListener?.('change', layoutEditors); resizeObserver?.disconnect(); inputEditor?.dispose(); outputEditor?.dispose(); };
+        return () => { state.input = getInput(); state.output = getOutput(); disposed = true; unsubscribeAuth(); window.removeEventListener('sukared:settings', settingsListener); window.removeEventListener('resize', layoutEditors); dprQuery?.removeEventListener?.('change', layoutEditors); resizeObserver?.disconnect(); inputEditor?.dispose(); outputEditor?.dispose(); };
     };
 
     window.SukaRedDashboard = { mount, apiUrl };

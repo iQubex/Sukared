@@ -2,11 +2,11 @@
     'use strict';
 
     const profiles = Object.freeze([
-        { id: 'light', name: 'Light', level: 'Low', intensity: 1, cost: 0, status: 'Available', description: 'Compact protection for quick builds.', enabled: true },
-        { id: 'light_plus', name: 'Light+', level: 'Medium', intensity: 2, cost: 0, status: 'Available', description: 'Balanced output size and protection.', enabled: true },
-        { id: 'good', name: 'Good', level: 'High', intensity: 3, cost: 0, status: 'Recommended', description: 'Recommended balance between protection, performance and compatibility.', enabled: true },
-        { id: 'pro', name: 'Pro', level: 'Maximum', intensity: 4, cost: 0, status: 'Available', description: 'Advanced protection profile for users requiring stronger protection.', enabled: true },
-        { id: 'hell', name: 'Hell', level: 'Extreme', intensity: 5, status: 'Coming Soon', description: 'Experimental maximum protection profile for high-value scripts.', enabled: false },
+        { id: 'light', name: 'Light', level: 'Low', intensity: 1, cost: 0, status: 'Available', performance: 'Fastest', runtime: 'Low', description: 'Compact protection for quick builds.', enabled: true },
+        { id: 'light_plus', name: 'Light+', level: 'Medium', intensity: 2, cost: 0, status: 'Available', performance: 'Fast', runtime: 'Low', description: 'Balanced output size and protection.', enabled: true },
+        { id: 'good', name: 'Good', level: 'High', intensity: 3, cost: 0, status: 'Recommended', performance: 'Balanced', runtime: 'Moderate', description: 'Practical daily protection with strong compatibility.', enabled: true },
+        { id: 'pro', name: 'Pro', level: 'Maximum', intensity: 4, cost: 0, status: 'Available', performance: 'Advanced', runtime: 'Higher', description: 'Stronger protection for important production scripts.', enabled: true },
+        { id: 'hell', name: 'Hell', level: 'Extreme', intensity: 5, cost: 0, performance: 'Intensive', runtime: 'Highest', status: 'Experimental', description: 'Maximum experimental protection for high-value scripts.', enabled: true },
         { id: 'blatant', name: 'Blatant', level: 'Severe', intensity: 6, status: 'Future', description: 'Aggressive structural protection.', enabled: false },
         { id: 'fatality', name: 'Fatality', level: 'Ultimate', intensity: 7, status: 'Future', description: 'Highest-intensity protection profile.', enabled: false }
     ]);
@@ -39,8 +39,11 @@
             const marker = el('span', 'profile-check'); marker.append(window.SukaRedIcons.icon('check', { size: 15 }));
             head.append(title, signal, marker);
             const meta = el('span', 'profile-card-meta');
-            meta.append(el('span', 'protection-level', profile.level), el('span', 'profile-status', profile.status), el('span', 'profile-cost', profile.enabled ? (profile.cost === 0 ? 'FREE' : `${profile.cost} credits`) : 'LOCKED'));
-            card.append(head, el('span', 'profile-description', profile.description), meta);
+            const profileCost = Number.isFinite(profile.cost) ? profile.cost : 0;
+            meta.append(el('span', 'protection-level', profile.level), el('span', 'profile-status', profile.status), el('span', 'profile-cost', profile.enabled ? (profileCost === 0 ? 'FREE' : `${profileCost} credits`) : 'LOCKED'));
+            const specs = el('span', 'profile-specs');
+            specs.append(el('span', '', `Build · ${profile.performance || 'Planned'}`), el('span', '', `Runtime · ${profile.runtime || 'Planned'}`));
+            card.append(head, el('span', 'profile-description', profile.description), specs, meta);
             if (profile.enabled) card.addEventListener('click', () => onSelect(profile.id));
             grid.append(card);
         });
@@ -161,18 +164,17 @@
         mountProfiles();
         const editorSection = el('section', 'settings-section'); editorSection.append(el('h3', '', 'Workspace'));
         const toggles = el('div', 'toggle-grid');
-        toggles.append(toggle('Word Wrap', draft.wordWrap, value => update({ wordWrap: value })), toggle('Minimap', draft.minimap, value => update({ minimap: value })), toggle('Motion', draft.animations, value => update({ animations: value })), toggle('Keep generated outputs', draft.keepOutputs, value => update({ keepOutputs: value })));
+        toggles.append(toggle('Word Wrap', draft.wordWrap, value => update({ wordWrap: value })), toggle('Minimap', draft.minimap, value => update({ minimap: value })), toggle('Motion', draft.animations, value => update({ animations: value })));
         editorSection.append(toggles);
-        const historySection = el('section', 'settings-section'); historySection.append(el('h3', '', 'Local History'));
-        const fields = el('div', 'settings-fields');
-        fields.append(selectField('Retention', draft.retentionDays, [{ value: 0, label: 'Never remove automatically' }, { value: 7, label: '7 days' }, { value: 30, label: '30 days' }, { value: 90, label: '90 days' }], value => update({ retentionDays: value })), selectField('Maximum entries', draft.maxHistoryEntries, [50, 100, 250, 500].map(value => ({ value, label: String(value) })), value => update({ maxHistoryEntries: value })));
-        historySection.append(fields); root.append(profileSection, editorSection, historySection); return root;
+        const historySection = el('section', 'settings-section');
+        historySection.append(el('h3', '', 'Account History'), el('p', 'section-note', 'Only build metadata is retained. Source code and protected output are never stored.'));
+        root.append(profileSection, editorSection, historySection); return root;
     };
 
     const openSettingsModal = trigger => {
         let draft = window.SukaRedSettings.load();
         openModal({
-            title: 'Settings', subtitle: 'Protection and local workspace preferences.', trigger,
+            title: 'Settings', subtitle: 'Protection and workspace preferences.', trigger,
             content: settingsContent(draft, value => { draft = value; }),
             actions: [
                 { label: 'Cancel', onClick: closeModal },

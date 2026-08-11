@@ -46,20 +46,7 @@
         };
         action('View Details', () => window.sukaredApp.router.navigate(`/history/${encodeURIComponent(record.id)}`));
         action('Copy Build ID', async () => { await navigator.clipboard.writeText(record.buildId || record.id); toast('Build ID copied', 'success'); });
-        if (record.outputAvailable) {
-            action('Copy Output', async () => { await navigator.clipboard.writeText(record.outputText); toast('Output copied', 'success'); });
-            action('Download Output', () => downloadText(`${record.sourceName.replace(/\.(lua|luau)$/i, '')}.luavex.lua`, record.outputText));
-        }
-        action('Rename', () => {
-            const wrap = el('label', 'field-row');
-            wrap.append(el('span', '', 'Script name'));
-            const input = document.createElement('input'); input.className = 'text-control'; input.value = record.sourceName; input.maxLength = 180; wrap.append(input);
-            openModal({ title: 'Rename Entry', content: wrap, actions: [
-                { label: 'Cancel', onClick: closeModal },
-                { label: 'Save', primary: true, onClick: async () => { if (input.value.trim()) await store.update(record.id, { sourceName: input.value.trim() }); closeModal(); toast('History entry renamed', 'success'); refresh(); } }
-            ] });
-        });
-        action('Delete', async () => { if (await confirm('Delete history entry?', 'This removes local metadata and any retained output.')) { await store.delete(record.id); toast('History entry deleted', 'success'); refresh(); } });
+        action('Delete', async () => { if (await confirm('Delete history entry?', 'This removes this account metadata record.')) { await store.delete(record.id); toast('History entry deleted', 'success'); refresh(); } });
         card.append(top, facts, actions);
         return card;
     };
@@ -77,31 +64,30 @@
 
     const history = async ({ outlet, store }) => {
         const page = el('section', 'content-page page-section');
-        page.append(heading('Local Workspace', 'Build History', 'Builds are stored locally in this browser.', 'Local Only'));
+        page.append(heading('Account', 'Build History', 'Private metadata for builds completed by your Discord account.', 'Metadata Only'));
+        if (!window.LuavexAuth.state.authenticated) {
+            const empty = el('div', 'empty-state');
+            empty.append(el('h2', '', 'Connect Discord to view history'), el('p', '', 'Source code and protected output are never stored in account history.'));
+            const connect = el('button', 'button button-primary', 'Connect Discord'); connect.type = 'button'; connect.addEventListener('click', window.LuavexAuth.login); empty.append(connect);
+            page.append(empty); setPage(outlet, page); return;
+        }
         const controls = el('div', 'history-controls');
         const search = document.createElement('input'); search.className = 'text-control search-control'; search.placeholder = 'Search scripts, Build IDs or errors'; search.setAttribute('aria-label', 'Search history');
         let renderList = async () => {};
-        const profile = customSelect('', ['All Profiles', 'Light', 'Light+', 'Good', 'Pro'].map(label => ({ value: label === 'All Profiles' ? '' : label, label })), () => renderList(), 'Filter by profile');
+        const profile = customSelect('', ['All Profiles', 'Light', 'Light+', 'Good', 'Pro', 'Hell'].map(label => ({ value: label === 'All Profiles' ? '' : label, label })), () => renderList(), 'Filter by profile');
         const status = customSelect('', ['All Statuses', 'completed', 'failed', 'timeout', 'cancelled', 'building'].map(value => ({ value: value.startsWith('All') ? '' : value, label: value.startsWith('All') ? value : value[0].toUpperCase() + value.slice(1) })), () => renderList(), 'Filter by status');
         const sort = customSelect('newest', [{ value: 'newest', label: 'Newest first' }, { value: 'oldest', label: 'Oldest first' }], () => renderList(), 'Sort history');
         controls.append(search, profile.element, status.element, sort.element);
         const management = el('div', 'history-management');
-        const importInput = document.createElement('input'); importInput.type = 'file'; importInput.accept = 'application/json,.json'; importInput.hidden = true;
         const button = (label, handler) => { const item = el('button', 'button', label); item.type = 'button'; item.addEventListener('click', handler); return item; };
         management.append(
             button('Export Metadata', async () => downloadText('luavex-history-metadata.json', JSON.stringify(await store.exportMetadata(), null, 2), 'application/json')),
-            button('Import Metadata', () => importInput.click()), importInput,
-            button('History Settings', () => window.sukaredApp.router.navigate('/settings?section=history')),
-            button('Clear History', async () => { if (await confirm('Clear all history?', 'This permanently removes local history and retained outputs.')) { await store.clearAll(); toast('History cleared', 'success'); renderList(); } })
+            button('Clear History', async () => { if (await confirm('Clear all history?', 'This permanently removes your account metadata records.')) { await store.clearAll(); toast('History cleared', 'success'); renderList(); } })
         );
         const list = el('div', 'history-list');
         page.append(controls, management, list);
         setPage(outlet, page);
 
-        importInput.addEventListener('change', async () => {
-            try { const payload = JSON.parse(await importInput.files[0].text()); const count = await store.importMetadata(payload); toast(`${count} history entries imported`, 'success'); renderList(); }
-            catch (error) { toast(error.message || 'History import failed', 'error'); }
-        });
         renderList = async () => {
             const query = search.value.trim().toLowerCase();
             let records = await store.list();
@@ -111,7 +97,7 @@
             list.replaceChildren();
             if (!records.length) {
                 const empty = el('div', 'empty-state');
-                empty.append(el('h2', '', 'No build history yet'), el('p', '', 'Your completed and failed builds will appear here. History is stored locally in this browser.'));
+                empty.append(el('h2', '', 'No build history yet'), el('p', '', 'Completed and failed build metadata will appear here. Source and output are not retained.'));
                 const start = el('a', 'button button-primary', 'Open Workspace'); start.href = '/workspace'; start.dataset.route = ''; empty.append(start); list.append(empty); return;
             }
             const groups = new Map();
@@ -130,7 +116,7 @@
         if (!record) return notFound({ outlet });
         const page = el('section', 'content-page page-section detail-page');
         const back = el('a', 'back-link', '← Build History'); back.href = '/history'; back.dataset.route = '';
-        page.append(back, heading('Build Record', record.sourceName, 'Local metadata for this build.', record.status.toUpperCase()));
+        page.append(back, heading('Build Record', record.sourceName, 'Account metadata for this build. No source or output is retained.', record.status.toUpperCase()));
         const facts = el('dl', 'detail-grid');
         const fields = [
             ['Build ID', record.buildId || record.id], ['Timestamp', formatDate(record.createdAt)], ['Status', record.status], ['Profile', record.profile],

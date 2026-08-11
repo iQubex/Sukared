@@ -25,7 +25,7 @@
         const title = document.createElement('h1');
         title.id = 'bootTitle';
         title.className = 'sr-only';
-        title.textContent = 'Luavex Beta';
+        title.textContent = 'Luavex 1.2';
         const edition = document.createElement('span');
         edition.className = 'boot-edition';
         edition.textContent = 'PUBLIC BETA';

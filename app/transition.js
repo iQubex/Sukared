@@ -3,153 +3,145 @@
 
     let active = null;
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches || !window.SukaRedSettings.load().animations;
-
-    const createTokenRenderer = (pre, tokens) => {
-        const nodes = tokens.map(token => {
-            if (token.type === 'whitespace' || token.type === 'newline') {
-                const node = document.createTextNode(token.value);
-                pre.append(node);
-                return node;
-            }
-            const node = document.createElement('span');
-            node.className = `transition-token token-${token.type}`;
-            node.textContent = token.value;
-            pre.append(node);
-            return node;
-        });
-
-        const updateToken = (index, value, className) => {
-            const node = nodes[index];
-            if (!node?.classList) return;
-            node.textContent = value;
-            node.classList.toggle('is-active', className === 'active');
-            node.classList.toggle('is-transformed', className === 'transformed');
-        };
-        return { nodes, updateToken };
-    };
+    const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches || !window.SukaRedSettings.load().animations;
+    const stages = [
+        ['queued', 'Queued'], ['analyzing', 'Analyzing'], ['preparing', 'Preparing Protection'],
+        ['virtualizing', 'Virtualizing'], ['protecting', 'Protecting Strings'],
+        ['integrity', 'Applying Integrity'], ['finalizing', 'Finalizing']
+    ];
 
     const begin = source => {
         if (active) return null;
-
-        const snippet = window.SukaRedMotion.selectSourceSnippet(source) || 'local protected = {}';
-        const tokens = window.SukaRedMotion.tokenizePreview(snippet);
-        const plan = window.SukaRedMotion.createProtectedPreviewPlan(tokens);
-        const totalCharacters = plan.steps.reduce((sum, step) => sum + Math.max(1, step.characterCount), 0);
-        const overlay = document.createElement('div');
-        overlay.className = 'build-transition';
-        const panel = document.createElement('section');
-        panel.className = 'transition-panel';
-        panel.setAttribute('role', 'status');
-        panel.setAttribute('aria-live', 'polite');
-
+        const snippet = window.SukaRedMotion.selectSourceSnippet(source, 7, 96) || 'local protected = {}';
+        const sourceLines = snippet.split('\n').slice(0, 7);
+        const overlay = document.createElement('div'); overlay.className = 'build-transition';
+        const panel = document.createElement('section'); panel.className = 'transition-panel pipeline-panel'; panel.setAttribute('role', 'status');
         const header = document.createElement('header');
-        const title = document.createElement('span');
-        title.className = 'transition-title';
-        title.textContent = 'LUAVEX / BUILD';
-        const state = document.createElement('span');
-        state.className = 'transition-state';
-        state.textContent = 'PREPARING';
-        header.append(title, state);
+        const title = document.createElement('span'); title.className = 'transition-title'; title.textContent = 'LUAVEX / BUILD';
+        const current = document.createElement('span'); current.className = 'transition-state'; current.textContent = 'QUEUED';
+        header.append(title, current);
 
-        const codeFrame = document.createElement('div');
-        codeFrame.className = 'transition-code-frame';
-        const lineNumbers = document.createElement('div');
-        lineNumbers.className = 'transition-line-numbers';
-        lineNumbers.setAttribute('aria-hidden', 'true');
-        const lineCount = Math.max(1, snippet.split('\n').length);
-        for (let line = 1; line <= lineCount; line++) {
-            const value = document.createElement('span');
-            value.textContent = String(line).padStart(2, '0');
-            lineNumbers.append(value);
-        }
-        const pre = document.createElement('pre');
-        pre.setAttribute('aria-hidden', 'true');
-        const renderer = createTokenRenderer(pre, tokens);
-        codeFrame.append(lineNumbers, pre);
-
-        const progress = document.createElement('div');
-        progress.className = 'transition-progress';
-        progress.setAttribute('aria-hidden', 'true');
-        const progressValue = document.createElement('span');
-        progress.append(progressValue);
+        const body = document.createElement('div'); body.className = 'pipeline-body';
+        const codeFrame = document.createElement('div'); codeFrame.className = 'pipeline-code';
+        const scan = document.createElement('span'); scan.className = 'pipeline-scan'; scan.setAttribute('aria-hidden', 'true');
+        const code = document.createElement('pre');
+        const blocks = sourceLines.map((line, index) => {
+            const row = document.createElement('span'); row.className = 'pipeline-line'; row.dataset.line = String(index + 1);
+            const number = document.createElement('i'); number.textContent = String(index + 1).padStart(2, '0');
+            const text = document.createElement('b'); text.textContent = line;
+            row.append(number, text); code.append(row); return { row, text, original: line };
+        });
+        codeFrame.append(code, scan);
+        const stageList = document.createElement('ol'); stageList.className = 'pipeline-stages';
+        const stageNodes = new Map(stages.map(([id, label]) => {
+            const item = document.createElement('li'); item.dataset.stage = id;
+            item.append(document.createElement('span'), document.createTextNode(label)); stageList.append(item); return [id, item];
+        }));
+        body.append(codeFrame, stageList);
         const footer = document.createElement('footer');
-        const queueLabel = document.createElement('span');
-        queueLabel.textContent = `${lineCount} LINE${lineCount === 1 ? '' : 'S'} QUEUED`;
-        const progressLabel = document.createElement('span');
-        progressLabel.textContent = '0%';
-        footer.append(queueLabel, progressLabel);
-        const announcement = document.createElement('p');
-        announcement.className = 'sr-only';
-        announcement.textContent = 'Obfuscation build started';
-        panel.append(header, codeFrame, progress, footer, announcement);
-        overlay.append(panel);
-        document.body.append(overlay);
+        const detail = document.createElement('span'); detail.textContent = `${sourceLines.length} SOURCE REGIONS`;
+        const privacy = document.createElement('span'); privacy.textContent = 'SOURCE IS NOT STORED';
+        footer.append(detail, privacy); panel.append(header, body, footer); overlay.append(panel); document.body.append(overlay);
 
-        const setProgress = completed => {
-            const value = Math.max(0, Math.min(100, Math.round((completed / Math.max(1, totalCharacters)) * 100)));
-            progressValue.style.width = `${value}%`;
-            progressLabel.textContent = `${value}%`;
+        let stageIndex = 0;
+        let stopped = false;
+        let accelerated = false;
+        let releaseFinalLine;
+        const finalLineReady = new Promise(resolve => { releaseFinalLine = resolve; });
+        const pacedDelay = async milliseconds => {
+            let remaining = milliseconds;
+            while (remaining > 0 && !stopped && !accelerated) {
+                const slice = Math.min(16, remaining);
+                await delay(slice);
+                remaining -= slice;
+            }
+            if (accelerated && !stopped) await delay(Math.min(6, milliseconds));
         };
-
-        requestAnimationFrame(() => overlay.classList.add('is-open'));
-        const minimumReady = (async () => {
-            const timing = window.SukaRedMotion.TIMING;
-            if (reducedMotion()) {
-                await delay(timing.reducedPreview);
-                state.textContent = 'TRANSFORMING';
-                plan.steps.forEach(step => renderer.updateToken(step.tokenIndex, step.replacement, 'transformed'));
-                setProgress(totalCharacters);
-                await delay(timing.reducedTransform);
-                state.textContent = 'PROCESSING';
+        const protectedText = block => {
+            const tokens = window.SukaRedMotion.tokenizePreview(block.original);
+            const plan = window.SukaRedMotion.createProtectedPreviewPlan(tokens, Math.random, 8);
+            return tokens.map((token, index) => plan.steps.find(step => step.tokenIndex === index)?.replacement || token.value).join('');
+        };
+        const morph = async () => {
+            if (reduced()) {
+                blocks.forEach(block => {
+                    block.text.textContent = protectedText(block);
+                    block.row.classList.add('is-morphed');
+                });
+                scan.classList.add('is-finished');
                 return;
             }
-
-            await delay(timing.transitionOpen + timing.transitionPreview);
-            state.textContent = 'TRANSFORMING';
-            let completedCharacters = 0;
-            const characterDelay = Math.max(5, Math.min(timing.characterStep, Math.floor(1800 / Math.max(1, totalCharacters))));
-            const corruptDelay = Math.max(8, Math.min(Math.floor(timing.tokenCorrupt / 2), Math.floor(650 / Math.max(1, plan.steps.length))));
-            const settleDelay = Math.max(6, Math.min(timing.tokenSettle, Math.floor(600 / Math.max(1, plan.steps.length))));
-            for (const step of plan.steps) {
-                renderer.updateToken(step.tokenIndex, window.SukaRedMotion.createTokenGlitchFrame(step.source, .38), 'active');
-                await delay(corruptDelay);
-                renderer.updateToken(step.tokenIndex, window.SukaRedMotion.createTokenGlitchFrame(step.source, .62), 'active');
-                await delay(corruptDelay);
-                for (let character = 0; character < step.characterCount; character++) {
-                    renderer.updateToken(step.tokenIndex, window.SukaRedMotion.createCharacterMorphFrame(step.source, step.replacement, character), 'active');
-                    setProgress(completedCharacters + character + 1);
-                    await delay(characterDelay);
+            for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+                const block = blocks[blockIndex];
+                if (stopped) break;
+                const transformed = protectedText(block);
+                const characterCount = Math.max(Array.from(block.original).length, Array.from(transformed).length);
+                const characterStep = Math.max(1, Math.ceil(characterCount / 42));
+                scan.style.top = `${block.row.offsetTop + block.row.offsetHeight - 30}px`;
+                block.row.classList.add('is-scanned');
+                if (blockIndex === blocks.length - 1 && !accelerated) {
+                    block.row.classList.add('is-awaiting-result');
+                    await finalLineReady;
+                    block.row.classList.remove('is-awaiting-result');
                 }
-                renderer.updateToken(step.tokenIndex, step.replacement, 'transformed');
-                completedCharacters += Math.max(1, step.characterCount);
-                await delay(settleDelay);
+                await pacedDelay(260);
+                for (let character = 0; character < characterCount && !stopped; character += characterStep) {
+                    if (accelerated) {
+                        block.text.textContent = transformed;
+                        break;
+                    }
+                    block.text.textContent = window.SukaRedMotion.createCharacterMorphFrame(
+                        block.original,
+                        transformed,
+                        Math.min(characterCount, character + characterStep),
+                        Math.random
+                    );
+                    await pacedDelay(24);
+                }
+                if (stopped) break;
+                block.text.textContent = transformed;
+                block.row.classList.add('is-morphed');
+                block.row.classList.remove('is-scanned');
+                await pacedDelay(110);
             }
-            setProgress(totalCharacters);
-            await delay(timing.transitionFinal);
-            state.textContent = 'PROCESSING';
-        })();
-
-        const close = async outcome => {
-            await minimumReady;
-            state.textContent = outcome === 'success' ? 'COMPLETE' : 'STOPPED';
-            announcement.textContent = outcome === 'success' ? 'Obfuscation build completed' : 'Obfuscation build failed';
-            await delay(reducedMotion() ? 0 : window.SukaRedMotion.TIMING.transitionSuccess);
-            overlay.classList.remove('is-open');
-            overlay.classList.add('is-closing');
-            await delay(reducedMotion() ? 0 : window.SukaRedMotion.TIMING.transitionClose);
-            plan.mapping.clear();
-            plan.steps.length = 0;
-            tokens.length = 0;
-            renderer.nodes.length = 0;
-            pre.replaceChildren();
-            overlay.remove();
-            active = null;
+            if (!stopped) {
+                scan.style.top = '100%';
+                scan.classList.add('is-finished');
+            }
         };
-
-        active = { minimumReady, close, overlay };
+        const setStage = (stage, payload = {}) => {
+            const found = stages.findIndex(([id]) => id === stage);
+            if (found >= 0) stageIndex = Math.max(stageIndex, found);
+            stageNodes.forEach((node, id) => {
+                const index = stages.findIndex(([value]) => value === id);
+                node.classList.toggle('is-current', index === stageIndex);
+                node.classList.toggle('is-complete', index < stageIndex);
+            });
+            const label = stages[stageIndex]?.[1] || 'Processing';
+            current.textContent = stage === 'queued' && payload.queuePosition
+                ? `QUEUED / ${payload.queuePosition}` : label.toUpperCase();
+        };
+        setStage('queued'); requestAnimationFrame(() => overlay.classList.add('is-open'));
+        const minimumReady = Promise.resolve();
+        const animationDone = morph();
+        const close = async outcome => {
+            accelerated = true;
+            releaseFinalLine();
+            if (outcome === 'success') await animationDone;
+            else stopped = true;
+            stopped = true;
+            if (outcome === 'success') {
+                stageNodes.forEach(node => node.classList.add('is-complete'));
+                current.textContent = 'COMPLETE'; panel.classList.add('is-complete');
+            } else current.textContent = 'STOPPED';
+            await delay(reduced() ? 0 : accelerated ? 45 : 220);
+            overlay.classList.remove('is-open');
+            await delay(reduced() ? 0 : accelerated ? 45 : 180);
+            overlay.remove(); active = null;
+        };
+        active = { minimumReady, close, setStage, overlay };
         return active;
     };
 
-    window.SukaRedTransition = { begin, get active() { return Boolean(active); } };
+    window.SukaRedTransition = { begin, get active() { return active; } };
 })();

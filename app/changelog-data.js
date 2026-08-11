@@ -2,12 +2,12 @@
     'use strict';
     window.SukaRedChangelog = Object.freeze([
         Object.freeze({
-            version: 'Luavex Beta',
+            version: 'Version 1.2',
             status: 'Current Beta',
             groups: Object.freeze({
-                Added: Object.freeze(['Luavex identity update', 'Multi-page dashboard', 'Monaco-powered workspace', 'Local build history']),
-                Improved: Object.freeze(['VM-based protection', 'Runtime support', 'Pro profile availability', 'Public beta privacy safeguards']),
-                Fixed: Object.freeze(['Adaptive profile handling for small scripts', 'Build transition pacing', 'Editor alignment and responsive usability'])
+                Added: Object.freeze(['Hell Experimental profile', 'Discord account integration', 'Account-based build history', 'Live build progress']),
+                Improved: Object.freeze(['Workspace and menu design', 'Build animation', 'Mobile experience', 'Protection systems', 'Lua/Luau compatibility']),
+                Fixed: Object.freeze(['Build stability', 'Profile handling', 'Local development access', 'Error feedback'])
             })
         }),
         Object.freeze({
