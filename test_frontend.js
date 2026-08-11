@@ -110,6 +110,9 @@ for (const sensitiveQuery of ["get('source')", "get('code')", "get('output')", "
 }
 assert(html.includes('href="/#/workspace"') && html.includes('href="/#/changelog"'));
 assert(routerSource.includes("hash.startsWith('#/')"), 'static-host hash routing is missing');
+for (const routeName of ['workspace', 'dashboard', 'history', 'changelog', 'credits', 'settings']) {
+    assert(read(`${routeName}/index.html`).includes("location.replace('/#'"), `missing static fallback for ${routeName}`);
+}
 assert(html.includes('id="accountSlot"') && html.includes('href="/#/history"'), 'account navigation is missing');
 assert(html.includes('Luavex 1.2') && main.includes('Luavex 1.2'), 'public version is inconsistent');
 assert(html.includes('/assets/luavex-brand.png'), 'Luavex logo asset is not connected');

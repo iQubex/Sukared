@@ -10,7 +10,7 @@
     const routes = [
         route('/', 'Welcome', () => window.SukaRedLanding.mount(outlet)),
         route('/workspace', 'Workspace', () => window.SukaRedDashboard.mount(outlet, store)),
-        route('/dashboard', 'Workspace', () => { history.replaceState({}, '', '/workspace'); return window.SukaRedDashboard.mount(outlet, store); }),
+        route('/dashboard', 'Workspace', () => { history.replaceState({}, '', '/#/workspace'); return window.SukaRedDashboard.mount(outlet, store); }),
         route('/history/:id', 'Build Details', wrap(({ params, ...context }) => views.historyDetail({ ...context, id: params.id }))),
         route('/history', 'Build History', wrap(views.history)),
         route('/changelog', 'Changelog', wrap(views.changelog)),
