@@ -64,7 +64,7 @@
             window.SukaRedUI.el('small', '', `@${auth.account.username}`)
         );
         const historyLink = window.SukaRedUI.el('a', 'account-action', 'Build History');
-        historyLink.href = '/history'; historyLink.dataset.route = '';
+        historyLink.href = '/#/history'; historyLink.dataset.route = '';
         const logout = window.SukaRedUI.el('button', 'account-action', 'Log out'); logout.type = 'button';
         logout.addEventListener('click', () => window.LuavexAuth.logout().catch(() => window.SukaRedUI.toast('Logout failed.', 'error')));
         panel.append(historyLink, logout); menu.append(trigger, panel); accountSlot.append(menu);
@@ -107,10 +107,11 @@
     applySettings(window.SukaRedSettings.load());
     store.ready.then(() => store.prune().catch(() => {}));
     window.LuavexAuth.refresh().then(auth => {
-        const authResult = new URLSearchParams(location.search).get('auth');
+        const hashQuery = location.hash.includes('?') ? location.hash.slice(location.hash.indexOf('?') + 1) : '';
+        const authResult = new URLSearchParams(hashQuery || location.search).get('auth');
         if (authResult === 'success' && auth.authenticated) window.SukaRedUI.toast('Discord connected', 'success');
         else if (authResult && authResult !== 'success') window.SukaRedUI.toast('Discord login could not be completed.', 'error');
-        if (authResult) history.replaceState({}, '', location.pathname);
+        if (authResult) history.replaceState({}, '', `/#${location.hash.slice(1).split('?')[0] || '/workspace'}`);
     });
     router.start();
 })();

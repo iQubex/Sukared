@@ -98,7 +98,7 @@
             if (!records.length) {
                 const empty = el('div', 'empty-state');
                 empty.append(el('h2', '', 'No build history yet'), el('p', '', 'Completed and failed build metadata will appear here. Source and output are not retained.'));
-                const start = el('a', 'button button-primary', 'Open Workspace'); start.href = '/workspace'; start.dataset.route = ''; empty.append(start); list.append(empty); return;
+                const start = el('a', 'button button-primary', 'Open Workspace'); start.href = '/#/workspace'; start.dataset.route = ''; empty.append(start); list.append(empty); return;
             }
             const groups = new Map();
             records.forEach(record => { const label = groupLabel(record.createdAt); if (!groups.has(label)) groups.set(label, []); groups.get(label).push(record); });
@@ -115,7 +115,7 @@
         const record = await store.get(id);
         if (!record) return notFound({ outlet });
         const page = el('section', 'content-page page-section detail-page');
-        const back = el('a', 'back-link', '← Build History'); back.href = '/history'; back.dataset.route = '';
+        const back = el('a', 'back-link', '← Build History'); back.href = '/#/history'; back.dataset.route = '';
         page.append(back, heading('Build Record', record.sourceName, 'Account metadata for this build. No source or output is retained.', record.status.toUpperCase()));
         const facts = el('dl', 'detail-grid');
         const fields = [
@@ -183,7 +183,7 @@
     };
 
     const notFound = ({ outlet }) => {
-        const page = el('section', 'content-page page-section centered-page'); const panel = el('section', 'placeholder-panel'); panel.append(el('span', 'error-code', '404'), el('h1', '', 'Page not found'), el('p', '', 'The page you requested does not exist.')); const link = el('a', 'button button-primary', 'Open Workspace'); link.href = '/workspace'; link.dataset.route = ''; panel.append(link); page.append(panel); setPage(outlet, page);
+        const page = el('section', 'content-page page-section centered-page'); const panel = el('section', 'placeholder-panel'); panel.append(el('span', 'error-code', '404'), el('h1', '', 'Page not found'), el('p', '', 'The page you requested does not exist.')); const link = el('a', 'button button-primary', 'Open Workspace'); link.href = '/#/workspace'; link.dataset.route = ''; panel.append(link); page.append(panel); setPage(outlet, page);
     };
 
     window.SukaRedViews = { history, historyDetail, pricing, credits, changelog, profile, settings, notFound };

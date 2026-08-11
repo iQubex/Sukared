@@ -33,13 +33,23 @@
             return { route: this.routes.find(route => route.path === '*'), path, params: {} };
         }
 
+        locationState() {
+            const hash = String(location.hash || '');
+            if (hash.startsWith('#/')) {
+                const [pathname, query = ''] = hash.slice(1).split('?');
+                return { pathname, search: query ? `?${query}` : '' };
+            }
+            return { pathname: location.pathname, search: location.search };
+        }
+
         async render() {
-            const match = this.match(location.pathname);
+            const current = this.locationState();
+            const match = this.match(current.pathname);
             if (this.currentCleanup) await this.currentCleanup();
             this.currentCleanup = null;
             this.beforeRender(match);
             this.outlet.classList.remove('route-enter');
-            const cleanup = await match.route.render({ ...match, query: new URLSearchParams(location.search) });
+            const cleanup = await match.route.render({ ...match, query: new URLSearchParams(current.search) });
             if (typeof cleanup === 'function') this.currentCleanup = cleanup;
             requestAnimationFrame(() => this.outlet.classList.add('route-enter'));
             this.afterRender(match);
@@ -47,8 +57,9 @@
 
         navigate(target, options = {}) {
             const url = new URL(target, location.origin);
+            const hashTarget = url.hash.startsWith('#/') ? url.hash.slice(1) : `${url.pathname}${url.search}`;
             const method = options.replace ? 'replaceState' : 'pushState';
-            history[method]({}, '', url.pathname);
+            history[method]({}, '', `/#${hashTarget}`);
             this.render();
         }
 
@@ -59,7 +70,7 @@
                 const url = new URL(link.href, location.origin);
                 if (url.origin !== location.origin) return;
                 event.preventDefault();
-                this.navigate(url.pathname);
+                this.navigate(url.hash.startsWith('#/') ? url.hash.slice(1) : `${url.pathname}${url.search}`);
             });
             addEventListener('popstate', () => this.render());
             return this.render();

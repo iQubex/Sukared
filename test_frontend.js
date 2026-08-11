@@ -60,14 +60,18 @@ assert(protectedPlan.steps.find(step => step.type === 'number').replacement.star
 assert.strictEqual(motion.createCharacterMorphFrame('value', '_0xABC', 0, () => 0), '#alue');
 assert(motion.createCharacterMorphFrame('value', '_0xABC', 3, () => 0).startsWith('_0x'));
 
+const routerSource = read('app/router.js');
 const routerContext = { window: {}, module: { exports: {} }, URL, URLSearchParams };
-vm.runInNewContext(read('app/router.js'), routerContext, { filename: 'router.js' });
+vm.runInNewContext(routerSource, routerContext, { filename: 'router.js' });
 const Router = routerContext.window.SukaRedRouter;
 const router = new Router([{ path: '/', title: 'Landing' }, { path: '/workspace', title: 'Workspace' }, { path: '/changelog', title: 'Changelog' }, { path: '*', title: '404' }]);
 assert.strictEqual(router.normalize('/'), '/');
 assert.strictEqual(router.match('/workspace').route.title, 'Workspace');
 assert.strictEqual(router.match('/changelog').route.title, 'Changelog');
 assert.strictEqual(router.match('/missing').route.title, '404');
+routerContext.location = { pathname: '/', search: '', hash: '#/workspace?auth=success' };
+assert.strictEqual(router.locationState().pathname, '/workspace');
+assert.strictEqual(new URLSearchParams(router.locationState().search).get('auth'), 'success');
 
 const main = read('app/main.js');
 const dashboard = read('app/dashboard.js');
@@ -100,12 +104,13 @@ assert(!transition.includes('innerHTML'), 'unsafe transition rendering returned'
 assert(!settings.includes('sourceCode') && !settings.includes('inputSource'), 'settings must not persist source');
 assert(settings.includes("window.LuavexAPI.request('/builds/history')"), 'history is not account-backed');
 assert(!settings.includes('indexedDB'), 'local build history storage returned');
-assert(main.includes("new URLSearchParams(location.search).get('auth')"), 'OAuth callback result handling is missing');
+assert(main.includes('hashQuery || location.search'), 'OAuth callback result handling is missing');
 for (const sensitiveQuery of ["get('source')", "get('code')", "get('output')", "get('seed')"]) {
     assert(!main.includes(sensitiveQuery), `sensitive URL state returned: ${sensitiveQuery}`);
 }
-assert(html.includes('href="/workspace"') && html.includes('href="/changelog"'));
-assert(html.includes('id="accountSlot"') && html.includes('href="/history"'), 'account navigation is missing');
+assert(html.includes('href="/#/workspace"') && html.includes('href="/#/changelog"'));
+assert(routerSource.includes("hash.startsWith('#/')"), 'static-host hash routing is missing');
+assert(html.includes('id="accountSlot"') && html.includes('href="/#/history"'), 'account navigation is missing');
 assert(html.includes('Luavex 1.2') && main.includes('Luavex 1.2'), 'public version is inconsistent');
 assert(html.includes('/assets/luavex-brand.png'), 'Luavex logo asset is not connected');
 assert(read('app/landing.js').includes("start.textContent = 'START'"), 'landing action label must be START');
