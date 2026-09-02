@@ -5,7 +5,8 @@ const fs = require('fs');
 const path = require('path');
 
 const root = __dirname;
-const port = Number(process.env.FRONTEND_PORT) || 8080;
+const port = Number(process.env.PORT || process.env.FRONTEND_PORT) || 8080;
+const host = process.env.HOST || '0.0.0.0';
 const mime = {
     '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
@@ -22,10 +23,16 @@ const send = (res, file) => {
 
 http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, `http://${req.headers.host || 'localhost'}`).pathname);
+    if (pathname === '/app/runtime-config.js') {
+        const apiBase = String(process.env.LUAVEX_API_BASE || '').replace(/\/+$/, '');
+        res.writeHead(200, { 'Content-Type': mime['.js'], 'Cache-Control': 'no-store' });
+        res.end(`window.LUAVEX_CONFIG=Object.freeze({apiBase:${JSON.stringify(apiBase)}});`);
+        return;
+    }
     const candidate = path.resolve(root, `.${pathname}`);
     if (candidate.startsWith(root) && path.extname(candidate) && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
         send(res, candidate);
         return;
     }
     send(res, path.join(root, 'index.html'));
-}).listen(port, '127.0.0.1', () => console.log(`Luavex frontend listening on ${port}`));
+}).listen(port, host, () => console.log(`Luavex frontend listening on ${host}:${port}`));

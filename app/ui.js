@@ -1,16 +1,6 @@
 (function () {
     'use strict';
 
-    const profiles = Object.freeze([
-        { id: 'light', name: 'Light', level: 'Low', intensity: 1, cost: 0, status: 'Available', performance: 'Fastest', runtime: 'Low', description: 'Compact protection for quick builds.', enabled: true },
-        { id: 'light_plus', name: 'Light+', level: 'Medium', intensity: 2, cost: 0, status: 'Available', performance: 'Fast', runtime: 'Low', description: 'Balanced output size and protection.', enabled: true },
-        { id: 'good', name: 'Good', level: 'High', intensity: 3, cost: 0, status: 'Recommended', performance: 'Balanced', runtime: 'Moderate', description: 'Practical daily protection with strong compatibility.', enabled: true },
-        { id: 'pro', name: 'Pro', level: 'Maximum', intensity: 4, cost: 0, status: 'Available', performance: 'Advanced', runtime: 'Higher', description: 'Stronger protection for important production scripts.', enabled: true },
-        { id: 'hell', name: 'Hell', level: 'Extreme', intensity: 5, cost: 0, performance: 'Intensive', runtime: 'Highest', status: 'Experimental', description: 'Maximum experimental protection for high-value scripts.', enabled: true },
-        { id: 'blatant', name: 'Blatant', level: 'Severe', intensity: 6, status: 'Future', description: 'Aggressive structural protection.', enabled: false },
-        { id: 'fatality', name: 'Fatality', level: 'Ultimate', intensity: 7, status: 'Future', description: 'Highest-intensity protection profile.', enabled: false }
-    ]);
-
     const el = (tag, className, text) => {
         const node = document.createElement(tag);
         if (className) node.className = className;
@@ -18,43 +8,13 @@
         return node;
     };
 
-    const profileGrid = (selected, onSelect) => {
-        const grid = el('div', 'profile-grid');
-        grid.setAttribute('role', 'radiogroup');
-        grid.setAttribute('aria-label', 'Protection profile');
-        profiles.forEach(profile => {
-            const card = el('button', `profile-card${selected === profile.id ? ' is-selected' : ''}`);
-            card.type = 'button';
-            card.dataset.profile = profile.id;
-            card.dataset.intensity = String(profile.intensity);
-            card.setAttribute('role', 'radio');
-            card.setAttribute('aria-checked', String(selected === profile.id));
-            card.disabled = !profile.enabled;
-            card.setAttribute('aria-disabled', String(!profile.enabled));
-            const head = el('span', 'profile-card-head');
-            const title = el('strong', 'profile-title', profile.name);
-            const signal = el('span', 'profile-signal');
-            signal.setAttribute('aria-hidden', 'true');
-            for (let index = 0; index < profile.intensity; index++) signal.append(el('i'));
-            const marker = el('span', 'profile-check'); marker.append(window.SukaRedIcons.icon('check', { size: 15 }));
-            head.append(title, signal, marker);
-            const meta = el('span', 'profile-card-meta');
-            const profileCost = Number.isFinite(profile.cost) ? profile.cost : 0;
-            meta.append(el('span', 'protection-level', profile.level), el('span', 'profile-status', profile.status), el('span', 'profile-cost', profile.enabled ? (profileCost === 0 ? 'FREE' : `${profileCost} credits`) : 'LOCKED'));
-            const specs = el('span', 'profile-specs');
-            specs.append(el('span', '', `Build · ${profile.performance || 'Planned'}`), el('span', '', `Runtime · ${profile.runtime || 'Planned'}`));
-            card.append(head, el('span', 'profile-description', profile.description), specs, meta);
-            if (profile.enabled) card.addEventListener('click', () => onSelect(profile.id));
-            grid.append(card);
-        });
-        return grid;
-    };
-
-    const toggle = (label, checked, onChange) => {
+    const toggle = (label, checked, onChange, options = {}) => {
         const row = el('label', 'toggle-row');
-        const input = document.createElement('input'); input.type = 'checkbox'; input.checked = checked;
+        const input = document.createElement('input'); input.type = 'checkbox'; input.checked = checked; input.disabled = options.disabled === true;
         input.addEventListener('change', () => onChange(input.checked));
         row.append(el('span', '', label), input, el('span', 'toggle-visual'));
+        if (options.disabled) row.classList.add('is-disabled');
+        if (options.note) row.title = options.note;
         return row;
     };
 
@@ -154,21 +114,42 @@
     const settingsContent = (initial, onDraft) => {
         let draft = { ...initial };
         const root = el('div', 'settings-content');
-        const update = changes => { draft = { ...draft, ...changes }; onDraft(draft); };
-        const profileSection = el('section', 'settings-section'); profileSection.append(el('h3', '', 'Protection Profile'), el('p', 'section-note', 'All available profiles are free during the public beta.'));
-        const mountProfiles = () => {
-            const current = profileSection.querySelector('.profile-grid');
-            const grid = profileGrid(draft.profile, profile => { update({ profile }); mountProfiles(); });
-            if (current) current.replaceWith(grid); else profileSection.append(grid);
+        const update = changes => { draft = { ...draft, ...changes }; onDraft(draft); render(); };
+        const updateFeature = (name, value) => {
+            const protectionFeatures = { ...draft.protectionFeatures, [name]: value };
+            if (name === 'virtualMachine' && !value) protectionFeatures.vmMutation = false;
+            update({ protectionFeatures });
         };
-        mountProfiles();
-        const editorSection = el('section', 'settings-section'); editorSection.append(el('h3', '', 'Workspace'));
-        const toggles = el('div', 'toggle-grid');
-        toggles.append(toggle('Word Wrap', draft.wordWrap, value => update({ wordWrap: value })), toggle('Minimap', draft.minimap, value => update({ minimap: value })), toggle('Motion', draft.animations, value => update({ animations: value })));
-        editorSection.append(toggles);
-        const historySection = el('section', 'settings-section');
-        historySection.append(el('h3', '', 'Account History'), el('p', 'section-note', 'Only build metadata is retained. Source code and protected output are never stored.'));
-        root.append(profileSection, editorSection, historySection); return root;
+        const render = () => {
+            root.replaceChildren();
+            const featureSection = el('section', 'settings-section protection-feature-section');
+            featureSection.append(el('h3', '', 'Protection'));
+            const featureToggles = el('div', 'toggle-grid');
+            const features = draft.protectionFeatures;
+            featureToggles.append(
+                toggle('Virtualization', features.virtualMachine, value => updateFeature('virtualMachine', value)),
+                toggle('VM Protection', features.vmMutation, value => updateFeature('vmMutation', value), {
+                    disabled: !features.virtualMachine,
+                    note: 'VM Protection requires Virtualization.'
+                }),
+                toggle('String Protection', features.stringProtection, value => updateFeature('stringProtection', value)),
+                toggle('Constant Protection', features.constantProtection, value => updateFeature('constantProtection', value)),
+                toggle('Integrity Protection', features.runtimeIntegrity, value => updateFeature('runtimeIntegrity', value)),
+                toggle('Minify Output', features.minifyOutput, value => updateFeature('minifyOutput', value))
+            );
+            featureSection.append(featureToggles);
+            if (!features.virtualMachine) featureSection.append(el('p', 'section-note dependency-note', 'VM Protection requires Virtualization.'));
+            root.append(featureSection);
+            const editorSection = el('section', 'settings-section'); editorSection.append(el('h3', '', 'Workspace'));
+            const toggles = el('div', 'toggle-grid');
+            toggles.append(toggle('Word Wrap', draft.wordWrap, value => update({ wordWrap: value })), toggle('Minimap', draft.minimap, value => update({ minimap: value })), toggle('Motion', draft.animations, value => update({ animations: value })));
+            editorSection.append(toggles);
+            const historySection = el('section', 'settings-section');
+            historySection.append(el('h3', '', 'Account History'), el('p', 'section-note', 'Only build metadata is retained. Source code and protected output are never stored.'));
+            root.append(editorSection, historySection);
+        };
+        render();
+        return root;
     };
 
     const openSettingsModal = trigger => {
@@ -183,5 +164,5 @@
         });
     };
 
-    window.SukaRedUI = { el, profiles, profileGrid, toggle, customSelect, selectField, toast, openModal, closeModal, confirm, settingsContent, openSettingsModal };
+    window.SukaRedUI = { el, toggle, customSelect, selectField, toast, openModal, closeModal, confirm, settingsContent, openSettingsModal };
 })();

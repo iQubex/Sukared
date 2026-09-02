@@ -76,23 +76,22 @@ Bunlar production runtime için gerekli değildir ve `.gitignore` tarafından ha
 Development:
 
 - Frontend: `http://localhost:8080`
-- Backend: `http://localhost:3000`
-- Callback: `http://localhost:3000/auth/discord/callback`
-- Hell local ve production ortamında Experimental; `SUKARED_HELL_ENABLED=0` acil kapatma anahtarıdır
+- Backend: `http://localhost:3001`
+- Callback: `http://localhost:3001/auth/discord/callback`
+- Ayarlar özellik tabanlıdır; kullanıcılar motor veya koruma profili seçmez
 
 Production:
 
 - HTTPS frontend ve callback
 - Secure session cookie
 - Sansürlenmiş API hataları
-- Hell Experimental açık (`SUKARED_HELL_ENABLED=1`)
 - Debug-only UI ve test-auth bypass kapalı
 
 Production'da `SUKARED_TEST_AUTH` kesinlikle tanımlanmaz.
 
 ## History gizliliği
 
-Account history yalnız build ID, zaman, profil, durum, süre, input/output boyutu, VM uygulanma durumu ve kısa koruma özeti tutar. Source, protected output, constant, string, VM bytecode, seed ve OAuth token saklanmaz.
+Account history yalnız build ID, zaman, durum, süre, input/output boyutu ve kısa koruma özeti tutar. Source, protected output, constant, string, koruma verisi, seed ve OAuth token saklanmaz.
 
 ## GitHub'a bağlama
 
@@ -105,7 +104,7 @@ Bu klasör yerel bir Git repository olarak `main` dalıyla hazırlanmıştır. G
 ```powershell
 git add .
 git status
-git commit -m "Prepare Luavex 1.2"
+git commit -m "Prepare Luavex 1.3"
 git remote add origin https://github.com/KULLANICI/Luavex.git
 git push -u origin main
 ```

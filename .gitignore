@@ -1,15 +1,27 @@
+# Secrets
 .env
 .env.*
 !.env.example
 
+# Dependencies and runtime output
 node_modules/
 *.log
 *.stdout.log
 *.stderr.log
+
+# Local-only tests and generated benchmark artifacts
+tests-local/
 screenshots/
 benchmark-output/
 temporary-reports/
 
+# Combined local workspace content maintained in the backend repository
+Backend/
+audit-fixtures/
+LUAVEX_V2_*.md
+.local-logs/
+
+# Editor / OS
 .DS_Store
 Thumbs.db
 .vscode/

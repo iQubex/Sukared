@@ -1,10 +1,17 @@
 (function () {
     'use strict';
 
-    const SETTINGS_KEY = 'luavex.settings.v2';
+    const SETTINGS_KEY = 'luavex.settings.v3';
     const defaults = Object.freeze({
-        version: 2,
-        profile: 'light_plus',
+        version: 3,
+        protectionFeatures: Object.freeze({
+            virtualMachine: true,
+            vmMutation: true,
+            stringProtection: true,
+            constantProtection: false,
+            runtimeIntegrity: false,
+            minifyOutput: true
+        }),
         wordWrap: true,
         minimap: false,
         animations: true
@@ -16,7 +23,6 @@
         createdAt: raw.timestamp || new Date().toISOString(),
         completedAt: raw.timestamp || null,
         status: raw.status === 'success' ? 'completed' : 'failed',
-        profile: String(raw.profile || 'unknown').replace(/^./, value => value.toUpperCase()),
         sourceName: `Build ${String(raw.buildId || raw.id || '').slice(0, 12)}`,
         sourceOrigin: 'account',
         sourceBytes: Number(raw.inputBytes) || 0,
@@ -75,18 +81,26 @@
     const loadSettings = () => {
         try {
             const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+            const savedFeatures = saved.protectionFeatures && typeof saved.protectionFeatures === 'object'
+                ? saved.protectionFeatures : {};
+            const protectionFeatures = Object.fromEntries(Object.entries(defaults.protectionFeatures)
+                .map(([name, fallback]) => [name, typeof savedFeatures[name] === 'boolean' ? savedFeatures[name] : fallback]));
+            if (!protectionFeatures.virtualMachine) protectionFeatures.vmMutation = false;
             return {
                 ...defaults,
-                ...saved,
-                version: 2,
-                profile: ['light', 'light_plus', 'good', 'pro', 'hell'].includes(saved.profile)
-                    ? saved.profile : defaults.profile
+                version: 3,
+                protectionFeatures,
+                wordWrap: typeof saved.wordWrap === 'boolean' ? saved.wordWrap : defaults.wordWrap,
+                minimap: typeof saved.minimap === 'boolean' ? saved.minimap : defaults.minimap,
+                animations: typeof saved.animations === 'boolean' ? saved.animations : defaults.animations
             };
         } catch (_) { return { ...defaults }; }
     };
 
     const saveSettings = changes => {
-        const value = { ...loadSettings(), ...changes, version: 2 };
+        const value = { ...loadSettings(), ...changes, version: 3 };
+        value.protectionFeatures = { ...defaults.protectionFeatures, ...(value.protectionFeatures || {}) };
+        if (!value.protectionFeatures.virtualMachine) value.protectionFeatures.vmMutation = false;
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(value));
         window.dispatchEvent(new CustomEvent('sukared:settings', { detail: value }));
         return value;

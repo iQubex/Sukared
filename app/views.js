@@ -35,9 +35,8 @@
         top.append(title, el('span', `status-badge status-${record.status}`, record.status === 'timeout' ? 'Timeout' : record.status[0].toUpperCase() + record.status.slice(1)));
         const facts = el('dl', 'history-facts');
         [
-            ['Profile', record.profile], ['Build ID', record.buildId || 'Pending'], ['Input', formatBytes(record.sourceBytes)],
+            ['Build ID', record.buildId || 'Pending'], ['Input', formatBytes(record.sourceBytes)],
             ['Output', formatBytes(record.outputBytes)], ['Build Time', record.buildTimeMs == null ? '-' : `${record.buildTimeMs} ms`],
-            ['Coverage', record.coveragePercent == null ? '-' : `${record.coveragePercent}%`],
             ...(record.errorCode ? [['Error', record.errorCode]] : [])
         ].forEach(([label, value]) => { const item = el('div'); item.append(el('dt', '', label), el('dd', '', value)); facts.append(item); });
         const actions = el('div', 'card-actions');
@@ -74,10 +73,9 @@
         const controls = el('div', 'history-controls');
         const search = document.createElement('input'); search.className = 'text-control search-control'; search.placeholder = 'Search scripts, Build IDs or errors'; search.setAttribute('aria-label', 'Search history');
         let renderList = async () => {};
-        const profile = customSelect('', ['All Profiles', 'Light', 'Light+', 'Good', 'Pro', 'Hell'].map(label => ({ value: label === 'All Profiles' ? '' : label, label })), () => renderList(), 'Filter by profile');
         const status = customSelect('', ['All Statuses', 'completed', 'failed', 'timeout', 'cancelled', 'building'].map(value => ({ value: value.startsWith('All') ? '' : value, label: value.startsWith('All') ? value : value[0].toUpperCase() + value.slice(1) })), () => renderList(), 'Filter by status');
         const sort = customSelect('newest', [{ value: 'newest', label: 'Newest first' }, { value: 'oldest', label: 'Oldest first' }], () => renderList(), 'Sort history');
-        controls.append(search, profile.element, status.element, sort.element);
+        controls.append(search, status.element, sort.element);
         const management = el('div', 'history-management');
         const button = (label, handler) => { const item = el('button', 'button', label); item.type = 'button'; item.addEventListener('click', handler); return item; };
         management.append(
@@ -92,7 +90,7 @@
             const query = search.value.trim().toLowerCase();
             let records = await store.list();
             records = records.filter(item => (!query || [item.sourceName, item.buildId, item.errorCode].some(value => String(value || '').toLowerCase().includes(query)))
-                && (!profile.value || item.profile === profile.value) && (!status.value || item.status === status.value));
+                && (!status.value || item.status === status.value));
             if (sort.value === 'oldest') records.reverse();
             list.replaceChildren();
             if (!records.length) {
@@ -119,17 +117,13 @@
         page.append(back, heading('Build Record', record.sourceName, 'Account metadata for this build. No source or output is retained.', record.status.toUpperCase()));
         const facts = el('dl', 'detail-grid');
         const fields = [
-            ['Build ID', record.buildId || record.id], ['Timestamp', formatDate(record.createdAt)], ['Status', record.status], ['Profile', record.profile],
+            ['Build ID', record.buildId || record.id], ['Timestamp', formatDate(record.createdAt)], ['Status', record.status],
             ['Input Size', formatBytes(record.sourceBytes)], ['Output Size', formatBytes(record.outputBytes)], ['Build Duration', record.buildTimeMs == null ? '-' : `${record.buildTimeMs} ms`],
-            ['VM Applied', record.vmApplied == null ? '-' : record.vmApplied ? 'Yes' : 'No'], ['Function Coverage', record.coveragePercent == null ? '-' : `${record.coveragePercent}%`],
-            ['AST Coverage', record.astCoveragePercent == null ? '-' : `${record.astCoveragePercent}%`], ['Runtime', record.runtimeVersion || '-'],
             ['Error Code', record.errorCode || '-'], ['Failure Stage', record.failureStage || '-'], ['Credits Charged', 'No']
         ];
         fields.forEach(([label, value]) => { const item = el('div'); item.append(el('dt', '', label), el('dd', '', String(value))); facts.append(item); });
         page.append(facts);
         if (record.errorMessage) { const error = el('section', 'safe-error'); error.append(el('h2', '', 'Error Information'), el('p', '', record.errorMessage)); page.append(error); }
-        const details = document.createElement('details'); details.className = 'technical-details standalone'; details.append(el('summary', '', 'Technical Metadata'));
-        const pre = el('pre'); pre.textContent = JSON.stringify(record.metadata || {}, null, 2); details.append(pre); page.append(details);
         setPage(outlet, page);
     };
 
@@ -138,8 +132,8 @@
         page.append(heading('Plans', 'Pricing', 'Credits are disabled during the public beta.', 'Coming Soon'));
         page.append(el('p', 'beta-notice', 'Current builds do not consume credits.'));
         const grid = el('div', 'pricing-grid');
-        [['Light', 1, '⚡'], ['Light+', 2, '✨'], ['Good', 10, '🛡'], ['Pro', 50, '🧪'], ['Hell', 200, '🔥'], ['Blatant', 500, '☠'], ['Fatality', 1000, '👑']].forEach(([name, credits, icon]) => {
-            const card = el('article', 'pricing-card is-locked'); card.append(el('span', 'pricing-icon', icon), el('h2', '', name), el('strong', 'price', `${credits} credit${credits === 1 ? '' : 's'}`), el('p', '', 'Purchasing is unavailable during beta.'));
+        [['Starter', 10, '⚡'], ['Builder', 50, '🛡'], ['Studio', 200, '✨']].forEach(([name, credits, icon]) => {
+            const card = el('article', 'pricing-card is-locked'); card.append(el('span', 'pricing-icon', icon), el('h2', '', name), el('strong', 'price', `${credits} credits`), el('p', '', 'Purchasing is unavailable during beta.'));
             const action = el('button', 'button', 'Coming Soon'); action.disabled = true; card.append(action); grid.append(card);
         });
         page.append(grid); setPage(outlet, page);
@@ -147,7 +141,7 @@
 
     const credits = ({ outlet }) => {
         const page = el('section', 'content-page page-section'); page.append(heading('Wallet', 'Credits', 'Static beta access information.', 'BETA ACCESS'));
-        const balance = el('section', 'balance-panel'); balance.append(el('span', '', 'Current Balance'), el('strong', '', '0 Credits'), el('p', '', 'Credits are disabled during the public beta. Current profiles do not consume credits.'));
+        const balance = el('section', 'balance-panel'); balance.append(el('span', '', 'Current Balance'), el('strong', '', '0 Credits'), el('p', '', 'Credits are disabled during the public beta. Current builds do not consume credits.'));
         const transactions = el('section', 'plain-section'); transactions.append(el('h2', '', 'Recent Transactions'), el('p', 'muted', 'No transactions yet.'));
         page.append(balance, transactions); setPage(outlet, page);
     };
@@ -165,12 +159,6 @@
         page.append(timeline); setPage(outlet, page);
     };
 
-    const profile = ({ outlet }) => {
-        const page = el('section', 'content-page page-section centered-page');
-        const panel = el('section', 'placeholder-panel'); panel.append(el('span', 'avatar-placeholder', 'G'), el('h1', '', 'Guest User'), el('span', 'page-badge', 'BETA'), el('h2', '', 'Coming Soon'), el('p', '', 'Accounts and cloud synchronization are not available during the public beta.'));
-        const disabled = el('div', 'disabled-actions'); ['Login', 'Register', 'Cloud History', 'API Keys'].forEach(label => { const button = el('button', 'button', label); button.disabled = true; disabled.append(button); }); panel.append(disabled); page.append(panel); setPage(outlet, page);
-    };
-
     const settings = ({ outlet, store }) => {
         let draft = window.SukaRedSettings.load();
         const page = el('section', 'content-page page-section'); page.append(heading('Preferences', 'Settings', 'Protection, editor and local history preferences.'));
@@ -186,5 +174,5 @@
         const page = el('section', 'content-page page-section centered-page'); const panel = el('section', 'placeholder-panel'); panel.append(el('span', 'error-code', '404'), el('h1', '', 'Page not found'), el('p', '', 'The page you requested does not exist.')); const link = el('a', 'button button-primary', 'Open Workspace'); link.href = '/#/workspace'; link.dataset.route = ''; panel.append(link); page.append(panel); setPage(outlet, page);
     };
 
-    window.SukaRedViews = { history, historyDetail, pricing, credits, changelog, profile, settings, notFound };
+    window.SukaRedViews = { history, historyDetail, pricing, credits, changelog, settings, notFound };
 })();
