@@ -12,6 +12,7 @@
             runtimeIntegrity: false,
             minifyOutput: true
         }),
+        developerMode: false,
         wordWrap: true,
         minimap: false,
         animations: true
@@ -90,6 +91,7 @@
                 ...defaults,
                 version: 3,
                 protectionFeatures,
+                developerMode: saved.developerMode === true,
                 wordWrap: typeof saved.wordWrap === 'boolean' ? saved.wordWrap : defaults.wordWrap,
                 minimap: typeof saved.minimap === 'boolean' ? saved.minimap : defaults.minimap,
                 animations: typeof saved.animations === 'boolean' ? saved.animations : defaults.animations

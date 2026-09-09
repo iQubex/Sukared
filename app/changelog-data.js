@@ -2,8 +2,16 @@
     'use strict';
     window.SukaRedChangelog = Object.freeze([
         Object.freeze({
+            version: 'Version 1.4 Beta', status: 'Current Beta',
+            groups: Object.freeze({
+                Added: Object.freeze(['Static remote Lua protection']),
+                Improved: Object.freeze(['Secure resource delivery', 'Larger remote Lua sources', 'Runtime integrity']),
+                Fixed: Object.freeze(['Compatibility', 'Workspace UI and editor alignment'])
+            })
+        }),
+        Object.freeze({
             version: 'Version 1.3',
-            status: 'Current Beta',
+            status: 'Previous Beta',
             groups: Object.freeze({
                 Added: Object.freeze(['Versioned Luavex output signature', 'Unified protection workflow']),
                 Improved: Object.freeze(['Protection settings', 'Public service routing', 'Deployment readiness', 'Output consistency']),

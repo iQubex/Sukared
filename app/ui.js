@@ -143,6 +143,7 @@
             const editorSection = el('section', 'settings-section'); editorSection.append(el('h3', '', 'Workspace'));
             const toggles = el('div', 'toggle-grid');
             toggles.append(toggle('Word Wrap', draft.wordWrap, value => update({ wordWrap: value })), toggle('Minimap', draft.minimap, value => update({ minimap: value })), toggle('Motion', draft.animations, value => update({ animations: value })));
+            if (window.LuavexAuth.state.localDevelopment) toggles.append(toggle('Developer Mode', draft.developerMode, value => update({ developerMode: value })));
             editorSection.append(toggles);
             const historySection = el('section', 'settings-section');
             historySection.append(el('h3', '', 'Account History'), el('p', 'section-note', 'Only build metadata is retained. Source code and protected output are never stored.'));

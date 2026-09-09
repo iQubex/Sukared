@@ -16,11 +16,23 @@
         }
         return payload;
     };
+    let resourceCandidate = false;
+    let obfuscatePath = '/obfuscate';
+    const backendLocal = ['localhost', '127.0.0.1'].includes(new URL(base, location.origin).hostname);
+    const ready = local && backendLocal ? request('/_internal/workspace-config').then(config => {
+        if (config.resourceCandidate === true && config.obfuscatePath === '/_internal/resource-obfuscate') {
+            resourceCandidate = true; obfuscatePath = config.obfuscatePath;
+        } else if (config.resourceCandidate !== false || config.obfuscatePath !== '/obfuscate') {
+            throw new Error('Invalid local workspace configuration.');
+        }
+    }).catch(error => { window.LuavexAPI.configurationError = error.message; }) : Promise.resolve();
     window.LuavexAPI = {
         base,
         request,
         authUrl: `${base}/auth/discord`,
         isLocal: local,
-        paths: Object.freeze({ obfuscate: '/obfuscate', health: '/health' })
+        ready,
+        get resourceCandidate() { return resourceCandidate; },
+        paths: Object.freeze({ get obfuscate() { return obfuscatePath; }, health: '/health' })
     };
 })();

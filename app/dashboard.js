@@ -64,8 +64,26 @@
         </section>`;
 
     const mount = async (outlet, historyStore) => {
+        await window.LuavexAPI.ready;
         outlet.innerHTML = view();
+        const candidate = window.LuavexAPI.resourceCandidate;
+        let resourceBindings; let developerPanel;
+        if (candidate) {
+            const panel = document.createElement('section'); panel.className = 'build-summary'; developerPanel = panel; panel.hidden = true;
+            panel.innerHTML = '<strong>Resource Indirection Candidate: ACTIVE</strong><p>Runtime Integrity: ACTIVE. Static Lua source rewrite: ACTIVE for literal HTTPS loadstring(game:HttpGet(...)) calls only. Resource builds execute the root body directly and use the available local HTTP transport.</p><label>Resource bindings (JSON)<textarea aria-label="Resource bindings" rows="3" style="width:100%">{"demo":{"resource_id":"local-demo","version":"1"}}</textarea></label><button type="button">Load resource example</button>';
+            outlet.querySelector('.workspace-heading').after(panel);
+            resourceBindings = panel.querySelector('textarea');
+            panel.querySelector('button').addEventListener('click', () => {
+                setInput('return function()\n    return __luavex_resource("demo")\nend');
+            });
+        }
         const settings = window.SukaRedSettings.load();
+        const updateDeveloperPanel = () => {
+            if (!developerPanel) return;
+            developerPanel.hidden = !(window.LuavexAuth.state.localDevelopment && window.SukaRedSettings.load().developerMode);
+            outlet.querySelector('.dashboard-page').classList.toggle('has-developer-tools', !developerPanel.hidden);
+        };
+        updateDeveloperPanel();
         const inputHost = outlet.querySelector('#inputEditor'); const outputHost = outlet.querySelector('#outputEditor');
         const inputFallback = outlet.querySelector('#inputFallback'); const outputFallback = outlet.querySelector('#outputFallback');
         const fileState = outlet.querySelector('#fileState'); const status = outlet.querySelector('#workspaceStatus'); const errorPanel = outlet.querySelector('#buildError'); const obfuscate = outlet.querySelector('#obfuscateBtn');
@@ -75,9 +93,17 @@
         outlet.querySelector('.settings-icon-slot').append(window.SukaRedIcons.icon('settings', { size: 15 })); outlet.querySelector('.run-icon-slot').append(window.SukaRedIcons.icon('play', { size: 23 }));
         inputFallback.value = state.input; outputFallback.value = state.output; outlet.querySelector('#protectionSummary').textContent = settingsSummary(settings); buildSummary(outlet.querySelector('#buildSummary'), state.build);
 
+        let processing = false; const controller = new AbortController();
         let inputEditor = null; let outputEditor = null; let suppressChange = true; let resizeObserver = null; let dprQuery = null; let disposed = false;
         const layoutEditors = () => { if (!disposed) { inputEditor?.layout(); outputEditor?.layout(); } };
         const monaco = await loadMonaco();
+        function refreshFontMetrics() {
+            if (disposed) return;
+            monaco?.editor.remeasureFonts(); layoutEditors();
+            dprQuery?.removeEventListener?.('change', refreshFontMetrics);
+            dprQuery = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+            dprQuery.addEventListener?.('change', refreshFontMetrics);
+        }
         if (!inputHost.isConnected) return () => {};
         if (monaco) {
             monaco.editor.defineTheme('sukared-mono', { base: 'vs-dark', inherit: true, rules: [
@@ -88,8 +114,8 @@
             inputFallback.hidden = true; outputFallback.hidden = true;
             inputEditor.onDidChangeModelContent(() => { state.input = inputEditor.getValue(); if (!suppressChange && state.sourceOrigin === 'file') { state.modified = true; updateFileState(); } }); suppressChange = false;
             resizeObserver = new ResizeObserver(layoutEditors); resizeObserver.observe(inputHost); resizeObserver.observe(outputHost); window.addEventListener('resize', layoutEditors);
-            dprQuery = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`); dprQuery.addEventListener?.('change', layoutEditors);
-            document.fonts?.ready?.then(layoutEditors); requestAnimationFrame(layoutEditors);
+            dprQuery = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`); dprQuery.addEventListener?.('change', refreshFontMetrics);
+            document.fonts?.ready?.then(refreshFontMetrics); document.fonts?.addEventListener('loadingdone', refreshFontMetrics); requestAnimationFrame(refreshFontMetrics);
         }
 
         const getInput = () => inputEditor ? inputEditor.getValue() : inputFallback.value;
@@ -101,10 +127,11 @@
         updateFileState(); updateOutputActions();
         const authBuildNote = outlet.querySelector('#authBuildNote');
         const applyAuth = auth => {
-            const blocked = !auth.authenticated;
-            if (!obfuscate.classList.contains('is-processing')) obfuscate.disabled = blocked;
+            const blocked = !auth.authenticated || Boolean(window.LuavexAPI.configurationError);
+            updateDeveloperPanel();
+            if (!processing) obfuscate.disabled = blocked;
             obfuscate.title = blocked ? 'Connect Discord to obfuscate' : 'Obfuscate source';
-            authBuildNote.textContent = blocked ? 'Connect Discord to build' : `Signed in as ${auth.account.displayName || auth.account.username}`;
+            authBuildNote.textContent = window.LuavexAPI.configurationError ? 'Local workspace configuration unavailable; restart the local backend.' : blocked ? 'Connect Discord to build' : `Signed in as ${auth.account.displayName || auth.account.username}`;
         };
         const unsubscribeAuth = window.LuavexAuth.subscribe(applyAuth);
 
@@ -114,34 +141,38 @@
             const file = event.target.files[0]; if (!file) return; if (file.size > 2 * 1024 * 1024) { window.SukaRedUI.toast('The file is too large.', 'error'); return; }
             state.sourceName = file.name.replace(/^.*[\\/]/, '').slice(0, 180); state.sourceOrigin = 'file'; state.modified = false; suppressChange = true; setInput((await file.text()).replace(/^\uFEFF/, '')); suppressChange = false; updateFileState();
         });
-        outlet.querySelector('#clearBtn').addEventListener('click', () => { setInput(''); setOutput(''); state.sourceName = null; state.sourceOrigin = 'editor'; state.modified = false; state.build = null; updateFileState(); updateOutputActions(); buildSummary(outlet.querySelector('#buildSummary'), null); errorPanel.hidden = true; });
-        copyButton.addEventListener('click', async () => { if (!getOutput()) return; await navigator.clipboard.writeText(getOutput()); window.SukaRedUI.toast('Output copied', 'success'); });
+        outlet.querySelector('#clearBtn').addEventListener('click', () => { setInput(''); setOutput(''); state.sourceName = null; state.sourceOrigin = 'editor'; state.modified = false; state.build = null; updateFileState(); updateOutputActions(); buildSummary(outlet.querySelector('#buildSummary'), null); errorPanel.hidden = true; status.textContent = 'Ready'; status.className = 'workspace-status'; });
+        copyButton.addEventListener('click', async () => { if (!getOutput()) return; try { await navigator.clipboard.writeText(getOutput()); window.SukaRedUI.toast('Output copied', 'success'); } catch { window.SukaRedUI.toast('Clipboard unavailable. Select and copy the output.', 'error'); } });
         downloadButton.addEventListener('click', () => { if (!getOutput()) return; const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([getOutput()], { type: 'text/plain;charset=utf-8' })); link.download = `${safeFilename(state.sourceName)}.luavex.lua`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 0); });
 
         obfuscate.addEventListener('click', async () => {
             if (!window.LuavexAuth.state.authenticated) { window.LuavexAuth.login(); return; }
-            const code = getInput(); if (!code.trim()) { window.SukaRedUI.toast('Input is empty.', 'warning'); return; } if (window.SukaRedTransition.active) return;
+            const code = getInput(); if (!code.trim()) { window.SukaRedUI.toast('Input is empty.', 'warning'); return; } if (processing) return;
             const currentSettings = window.SukaRedSettings.load();
-            const transition = window.SukaRedTransition.begin(code);
+            processing = true; const started = performance.now();
             const id = crypto.randomUUID ? crypto.randomUUID() : `LOCAL-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            status.textContent = 'Processing'; status.className = 'workspace-status is-processing'; obfuscate.disabled = true; obfuscate.classList.add('is-processing'); errorPanel.hidden = true;
+            status.textContent = 'Obfuscating...'; obfuscate.setAttribute('aria-busy', 'true'); status.className = 'workspace-status is-processing'; obfuscate.disabled = true; obfuscate.classList.add('is-processing'); errorPanel.hidden = true;
             try {
-                const response = await fetch(apiUrl(), { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'x-idempotency-key': id }, body: JSON.stringify({ code, features: currentSettings.protectionFeatures }) });
+                const payload = candidate ? { code, bindings: developerPanel && !developerPanel.hidden ? JSON.parse(resourceBindings.value) : {}, build_id: id } : { code, features: currentSettings.protectionFeatures };
+                const response = await fetch(apiUrl(), { method: 'POST', credentials: 'include', signal: controller.signal, headers: { 'Content-Type': 'application/json', 'x-idempotency-key': id }, body: JSON.stringify(payload) });
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok) { const error = new Error(data.message || 'Build failed.'); error.code = data.code || 'BUILD_FAILED'; error.build = data.build; error.details = data.details; throw error; }
-                setOutput(data.obfuscated || ''); updateOutputActions(); state.build = data.build || {}; buildSummary(outlet.querySelector('#buildSummary'), state.build);
-                status.textContent = 'Completed'; status.className = 'workspace-status is-completed'; await transition.close('success'); window.SukaRedUI.toast('Build completed', 'success');
+                if (disposed) return;
+                if (typeof data.obfuscated !== 'string' || !data.obfuscated) throw new Error('No build output received.');
+                setOutput(data.obfuscated); updateOutputActions(); state.build = { ...data.build, outputBytes: bytes(data.obfuscated), processingTimeMs: data.build?.processingTimeMs ?? Math.round(performance.now() - started) }; buildSummary(outlet.querySelector('#buildSummary'), state.build);
+                status.textContent = 'Completed'; status.className = 'workspace-status is-completed'; window.SukaRedUI.toast('Build completed', 'success');
             } catch (error) {
+                if (disposed) return;
                 const codeValue = error.code || (error.name === 'AbortError' ? 'CANCELLED' : 'NETWORK_ERROR');
                 const detailText = error.details && Object.keys(error.details).length ? `\nDetails: ${JSON.stringify(error.details)}` : '';
-                errorPanel.hidden = false; errorPanel.querySelector('pre').textContent = `${codeValue}\n${buildErrorMessage(codeValue, error.message)}${detailText}`; status.textContent = 'Error'; status.className = 'workspace-status is-error'; await transition?.close('error'); window.SukaRedUI.toast('Build failed', 'error');
+                errorPanel.hidden = false; errorPanel.querySelector('pre').textContent = `${codeValue}\n${buildErrorMessage(codeValue, error.message)}${detailText}`; status.textContent = 'Error'; status.className = 'workspace-status is-error'; window.SukaRedUI.toast('Build failed', 'error');
                 if (codeValue === 'AUTH_REQUIRED') await window.LuavexAuth.refresh();
-            } finally { obfuscate.classList.remove('is-processing'); applyAuth(window.LuavexAuth.state); }
+            } finally { processing = false; obfuscate.removeAttribute('aria-busy'); obfuscate.classList.remove('is-processing'); applyAuth(window.LuavexAuth.state); }
         });
 
-        const settingsListener = event => { const value = event.detail; outlet.querySelector('#protectionSummary').textContent = settingsSummary(value); inputEditor?.updateOptions({ wordWrap: value.wordWrap ? 'on' : 'off', minimap: { enabled: value.minimap } }); outputEditor?.updateOptions({ wordWrap: value.wordWrap ? 'on' : 'off', minimap: { enabled: value.minimap } }); layoutEditors(); };
+        const settingsListener = event => { const value = event.detail; updateDeveloperPanel(); outlet.querySelector('#protectionSummary').textContent = settingsSummary(value); inputEditor?.updateOptions({ wordWrap: value.wordWrap ? 'on' : 'off', minimap: { enabled: value.minimap } }); outputEditor?.updateOptions({ wordWrap: value.wordWrap ? 'on' : 'off', minimap: { enabled: value.minimap } }); layoutEditors(); };
         window.addEventListener('sukared:settings', settingsListener);
-        return () => { state.input = getInput(); state.output = getOutput(); disposed = true; unsubscribeAuth(); window.removeEventListener('sukared:settings', settingsListener); window.removeEventListener('resize', layoutEditors); dprQuery?.removeEventListener?.('change', layoutEditors); resizeObserver?.disconnect(); inputEditor?.dispose(); outputEditor?.dispose(); };
+        return () => { state.input = getInput(); state.output = getOutput(); disposed = true; controller.abort(); document.fonts?.removeEventListener('loadingdone', refreshFontMetrics); unsubscribeAuth(); window.removeEventListener('sukared:settings', settingsListener); window.removeEventListener('resize', layoutEditors); dprQuery?.removeEventListener?.('change', refreshFontMetrics); resizeObserver?.disconnect(); inputEditor?.dispose(); outputEditor?.dispose(); };
     };
 
     window.SukaRedDashboard = { mount, apiUrl };
