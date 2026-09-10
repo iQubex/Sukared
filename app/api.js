@@ -3,7 +3,7 @@
 
     const local = ['localhost', '127.0.0.1', '::1', ''].includes(location.hostname);
     const configuredBase = String(window.LUAVEX_CONFIG?.apiBase || '').replace(/\/+$/, '');
-    const base = configuredBase || (local ? 'http://localhost:3001' : location.origin);
+    const base = configuredBase || (local ? 'http://localhost:3001' : 'https://backend-luavex.up.railway.app');
     const request = async (path, options = {}) => {
         const response = await fetch(`${base}${path}`, { credentials: 'include', ...options });
         const payload = await response.json().catch(() => ({}));

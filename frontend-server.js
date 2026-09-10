@@ -30,7 +30,7 @@ const createFrontendServer = () => http.createServer((req, res) => {
         res.writeHead(404); res.end('Not found.'); return;
     }
     if (pathname === '/app/runtime-config.js') {
-        const apiBase = String(process.env.LUAVEX_API_BASE || '').replace(/\/+$/, '');
+        const apiBase = String(process.env.LUAVEX_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://backend-luavex.up.railway.app' : '')).replace(/\/+$/, '');
         res.writeHead(200, { 'Content-Type': mime['.js'], 'Cache-Control': 'no-store' });
         res.end(`window.LUAVEX_CONFIG=Object.freeze({apiBase:${JSON.stringify(apiBase)}});`);
         return;
