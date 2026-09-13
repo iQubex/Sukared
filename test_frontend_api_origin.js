@@ -7,15 +7,15 @@ const api=fs.readFileSync('app/api.js','utf8');
 async function check(config){
  const requests=[];let click;
  const window={LuavexAuth:{state:{authenticated:true}},SukaRedSettings:{load:()=>({protectionFeatures:{runtimeIntegrity:true}})}};
- const context=vm.createContext({window,location:{hostname:'sukared.onrender.com',origin:'https://sukared.onrender.com'},URL,Blob,AbortController,performance,crypto:require('node:crypto').webcrypto,
+ const context=vm.createContext({window,location:{hostname:'sukared.onrender.com',origin:'https://sukared.onrender.com'},URL,Blob,AbortController,performance,crypto:require('node:crypto').webcrypto,clearTimeout,
  fetch:async(url,options)=>{requests.push({url,options});return {ok:true,json:async()=>({})}},
- getInput:()=>context.input,processing:false,disposed:true,candidate:false,status:{},errorPanel:{},controller:new AbortController(),applyAuth:()=>{},
+ getInput:()=>context.input,processing:false,disposed:true,candidate:false,status:{},errorPanel:{},controller:new AbortController(),applyAuth:()=>{},setStatus:()=>{},scheduleIdleStatus:()=>{},terminalStatus:false,statusResetTimer:null,
  obfuscate:{addEventListener:(_,fn)=>{click=fn},setAttribute(){},removeAttribute(){},classList:{add(){},remove(){}}}});
  if(config)vm.runInContext(config,context);
  vm.runInContext(api,context);await window.LuavexAPI.ready;
  vm.runInContext(dashboard,context);context.apiUrl=window.SukaRedDashboard.apiUrl;
- const start=dashboard.indexOf("obfuscate.addEventListener('click', async () => {"),end=dashboard.indexOf('        const settingsListener',start);
- assert(start>=0&&end>start);vm.runInContext(dashboard.slice(start,end),context);
+ const start=dashboard.indexOf('        const runBuild = async () => {'),end=dashboard.indexOf("        obfuscate.addEventListener('click', runBuild);",start);
+ assert(start>=0&&end>start);vm.runInContext(dashboard.slice(start,end).replace('const runBuild =', 'runBuild ='),context);click=context.runBuild;
  for(const input of ['print("hello")','loadstring(game:HttpGet("https://raw.githubusercontent.com/example/project/main/test.lua"))()']){
   context.input=input;await click();
   const r=requests.at(-1);assert.equal(r.url,origin+'/obfuscate');assert.equal(r.options.method,'POST');assert.equal(r.options.credentials,'include');
