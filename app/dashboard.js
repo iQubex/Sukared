@@ -12,10 +12,21 @@
     const inputMetadata = value => { const count = lineCount(value); return `LUAU SOURCE · ${count} ${count === 1 ? 'LINE' : 'LINES'}`; };
     const outputMetadata = value => value ? `PROTECTED OUTPUT · ${formatBytes(bytes(value))}` : 'PROTECTED OUTPUT';
     const canUseBuildShortcut = (event, disabled, processing) => Boolean(event && !event.repeat && (event.ctrlKey || event.metaKey) && event.key === 'Enter' && !disabled && !processing);
+    const quotaView = auth => {
+        const usage = auth?.authenticated && auth.usage && Number.isInteger(auth.usage.remaining) ? auth.usage : null;
+        if (!usage) return { visible: false, exhausted: false, label: '', note: '' };
+        const remaining = Math.max(0, usage.remaining);
+        const reset = new Date(usage.resetsAt);
+        const resetText = Number.isNaN(reset.getTime()) ? '' : ` Resets at ${reset.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+        return { visible: true, exhausted: remaining === 0,
+            label: remaining === 0 ? 'LIMIT REACHED' : `${remaining} BUILD${remaining === 1 ? '' : 'S'} LEFT`,
+            note: remaining === 0 ? `Daily limit reached.${resetText}` : '' };
+    };
     const safeFilename = value => String(value || 'Untitled-Script').replace(/\.(lua|luau)$/i, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100) || 'Untitled-Script';
     const buildErrorMessage = (code, fallback) => ({
         AUTH_REQUIRED: 'Connect Discord before starting a build.',
         SOURCE_REQUIRED: 'Add Luau source code before starting a build.',
+        DAILY_LIMIT_REACHED: 'Daily limit reached. Try again after reset.',
         RATE_LIMITED: 'Too many build requests. Wait a moment and try again.',
         QUEUE_FULL: 'The build queue is currently full. Try again shortly.',
         BUILD_TIMEOUT: 'The build exceeded its time limit. Your source was not stored.',
@@ -138,20 +149,25 @@
         const updateInputMetadata = () => { fileState.textContent = inputMetadata(getInput()); fileState.title = state.sourceName ? `${state.sourceName}${state.modified ? ' / Modified' : ''}` : 'Editor buffer'; };
         const updateOutputActions = () => { const output = getOutput(); const available = Boolean(output); copyButton.disabled = !available; downloadButton.disabled = !available; outlet.querySelector('#outputState').textContent = outputMetadata(output); outlet.querySelector('#outputEmptyState').hidden = available; outlet.querySelector('#outputAssist').textContent = available ? 'Protected output is available.' : 'Output is empty.'; };
         const setStatus = (label, modifier = '') => { status.textContent = label; status.className = `workspace-status${modifier ? ` ${modifier}` : ''}`; };
-        const idleStatus = auth => { const configurationFailed = Boolean(window.LuavexAPI.configurationError); setStatus(configurationFailed ? 'FAILED' : auth.authenticated ? 'ENGINE READY' : 'AUTH REQUIRED', configurationFailed ? 'is-error' : auth.authenticated ? '' : 'is-auth-required'); };
+        const idleStatus = auth => { const configurationFailed = Boolean(window.LuavexAPI.configurationError); const quota = quotaView(auth); setStatus(configurationFailed ? 'FAILED' : !auth.authenticated ? 'AUTH REQUIRED' : quota.exhausted ? 'LIMIT REACHED' : 'ENGINE READY', configurationFailed || quota.exhausted ? 'is-error' : auth.authenticated ? '' : 'is-auth-required'); };
         const scheduleIdleStatus = () => { clearTimeout(statusResetTimer); statusResetTimer = setTimeout(() => { terminalStatus = false; idleStatus(window.LuavexAuth.state); }, 2400); };
         const fallbackInputListener = () => { state.input = inputFallback.value; updateInputMetadata(); };
         inputFallback.addEventListener('input', fallbackInputListener);
         updateInputMetadata(); updateOutputActions();
         const authBuildNote = outlet.querySelector('#authBuildNote');
+        const quotaState = outlet.querySelector('#quotaState');
         const applyAuth = auth => {
-            const blocked = !auth.authenticated || Boolean(window.LuavexAPI.configurationError);
+            const quota = quotaView(auth);
+            const blocked = !auth.authenticated || quota.exhausted || Boolean(window.LuavexAPI.configurationError);
             updateDeveloperPanel();
             if (!processing) obfuscate.disabled = blocked;
-            obfuscate.title = blocked ? 'Connect Discord to build' : 'Build protected output (Ctrl/Cmd + Enter)';
-            obfuscate.setAttribute('aria-label', blocked ? 'Connect Discord to build' : 'Build protected output. Shortcut: Control or Command plus Enter');
-            authBuildNote.textContent = window.LuavexAPI.configurationError ? 'Workspace unavailable' : blocked ? 'Connect Discord to build' : '';
-            authBuildNote.hidden = !blocked;
+            const buildTitle = !auth.authenticated ? 'Connect Discord to build' : quota.exhausted ? 'Daily limit reached' : 'Build protected output (Ctrl/Cmd + Enter)';
+            obfuscate.title = window.LuavexAPI.configurationError ? 'Workspace unavailable' : buildTitle;
+            obfuscate.setAttribute('aria-label', obfuscate.title);
+            quotaState.textContent = quota.label;
+            quotaState.hidden = !quota.visible;
+            authBuildNote.textContent = window.LuavexAPI.configurationError ? 'Workspace unavailable' : !auth.authenticated ? 'Connect Discord to build' : quota.note;
+            authBuildNote.hidden = !window.LuavexAPI.configurationError && auth.authenticated && !quota.exhausted;
             if (!processing && !terminalStatus) idleStatus(auth);
         };
         const unsubscribeAuth = window.LuavexAuth.subscribe(applyAuth);
@@ -167,6 +183,7 @@
 
         const runBuild = async () => {
             if (!window.LuavexAuth.state.authenticated) { window.LuavexAuth.login(); return; }
+            if (window.SukaRedDashboard.helpers.quotaView(window.LuavexAuth.state).exhausted) { applyAuth(window.LuavexAuth.state); return; }
             const code = getInput(); if (!code.trim()) { window.SukaRedUI.toast('Input is empty.', 'warning'); return; } if (processing) return;
             const currentSettings = window.SukaRedSettings.load();
             processing = true; const started = performance.now();
@@ -176,16 +193,18 @@
                 const payload = candidate ? { code, bindings: developerPanel && !developerPanel.hidden ? JSON.parse(resourceBindings.value) : {}, build_id: id } : { code, features: currentSettings.protectionFeatures, resourceProtection: true };
                 const response = await fetch(apiUrl(), { method: 'POST', credentials: 'include', signal: controller.signal, headers: { 'Content-Type': 'application/json', 'x-idempotency-key': id }, body: JSON.stringify(payload) });
                 const data = await response.json().catch(() => ({}));
-                if (!response.ok) { const error = new Error(data.message || 'Build failed.'); error.code = data.code || 'BUILD_FAILED'; error.build = data.build; error.details = data.details; throw error; }
+                if (!response.ok) { const error = new Error(data.message || 'Build failed.'); error.code = data.code || 'BUILD_FAILED'; error.build = data.build; error.details = data.details; error.usage = data.usage; throw error; }
                 if (disposed) return;
                 if (typeof data.obfuscated !== 'string' || !data.obfuscated) throw new Error('No build output received.');
                 setOutput(data.obfuscated); updateOutputActions(); state.build = { ...data.build, outputBytes: bytes(data.obfuscated), processingTimeMs: data.build?.processingTimeMs ?? Math.round(performance.now() - started) }; buildSummary(outlet.querySelector('#buildSummary'), state.build);
+                if (data.usage) window.LuavexAuth.applyUsage(data.usage);
                 terminalStatus = true; setStatus('COMPLETE', 'is-completed'); scheduleIdleStatus(); window.SukaRedUI.toast('Build completed', 'success');
             } catch (error) {
                 if (disposed) return;
                 const codeValue = error.code || (error.name === 'AbortError' ? 'CANCELLED' : 'NETWORK_ERROR');
                 const detailText = error.details && Object.keys(error.details).length ? `\nDetails: ${JSON.stringify(error.details)}` : '';
-                errorPanel.hidden = false; errorPanel.querySelector('pre').textContent = `${codeValue}\n${buildErrorMessage(codeValue, error.message)}${detailText}`; terminalStatus = true; setStatus('FAILED', 'is-error'); scheduleIdleStatus(); window.SukaRedUI.toast('Build failed', 'error');
+                if (codeValue === 'DAILY_LIMIT_REACHED' && error.usage) window.LuavexAuth.applyUsage(error.usage);
+                errorPanel.hidden = false; errorPanel.querySelector('pre').textContent = `${codeValue}\n${buildErrorMessage(codeValue, error.message)}${detailText}`; terminalStatus = true; setStatus(codeValue === 'DAILY_LIMIT_REACHED' ? 'LIMIT REACHED' : 'FAILED', 'is-error'); if (codeValue !== 'DAILY_LIMIT_REACHED') scheduleIdleStatus(); window.SukaRedUI.toast(codeValue === 'DAILY_LIMIT_REACHED' ? 'Daily limit reached' : 'Build failed', 'error');
                 if (codeValue === 'AUTH_REQUIRED') await window.LuavexAuth.refresh();
             } finally { processing = false; obfuscate.removeAttribute('aria-busy'); obfuscate.classList.remove('is-processing'); applyAuth(window.LuavexAuth.state); }
         };
@@ -198,5 +217,5 @@
         return () => { state.input = getInput(); state.output = getOutput(); disposed = true; clearTimeout(statusResetTimer); controller.abort(); document.fonts?.removeEventListener('loadingdone', refreshFontMetrics); unsubscribeAuth(); inputFallback.removeEventListener('input', fallbackInputListener); outlet.removeEventListener('keydown', shortcutListener); window.removeEventListener('sukared:settings', settingsListener); window.removeEventListener('resize', layoutEditors); dprQuery?.removeEventListener?.('change', refreshFontMetrics); resizeObserver?.disconnect(); inputEditor?.dispose(); outputEditor?.dispose(); };
     };
 
-    window.SukaRedDashboard = { mount, apiUrl, helpers: Object.freeze({ formatBytes, lineCount, inputMetadata, outputMetadata, canUseBuildShortcut }) };
+    window.SukaRedDashboard = { mount, apiUrl, helpers: Object.freeze({ formatBytes, lineCount, inputMetadata, outputMetadata, canUseBuildShortcut, quotaView }) };
 })();

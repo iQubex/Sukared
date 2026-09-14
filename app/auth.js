@@ -13,6 +13,7 @@
         loaded: local,
         authenticated: local,
         account: local ? localAccount : null,
+        usage: null,
         localDevelopment: local
     };
     const listeners = new Set();
@@ -28,6 +29,7 @@
                 loaded: true,
                 authenticated: local || data.authenticated === true,
                 account: data.account || (local ? localAccount : null),
+                usage: data.usage || null,
                 localDevelopment: local || data.localDevelopment === true
             });
         } catch (_) {
@@ -35,6 +37,7 @@
                 loaded: true,
                 authenticated: local,
                 account: local ? localAccount : null,
+                usage: null,
                 localDevelopment: local
             });
         }
@@ -47,15 +50,22 @@
     };
     const logout = async () => {
         if (local) {
-            Object.assign(state, { loaded: true, authenticated: true, account: localAccount, localDevelopment: true });
+            Object.assign(state, { loaded: true, authenticated: true, account: localAccount, usage: null, localDevelopment: true });
             emit();
             return;
         }
         await window.LuavexAPI.request('/auth/logout', { method: 'POST' });
-        Object.assign(state, { loaded: true, authenticated: false, account: null, localDevelopment: false });
+        Object.assign(state, { loaded: true, authenticated: false, account: null, usage: null, localDevelopment: false });
         emit();
         window.sukaredApp?.router?.navigate('/workspace');
     };
+    const applyUsage = usage => {
+        if (!usage || !Number.isInteger(usage.limit) || !Number.isInteger(usage.used)
+            || !Number.isInteger(usage.remaining) || typeof usage.resetsAt !== 'string') return false;
+        state.usage = { limit: usage.limit, used: usage.used, remaining: Math.max(0, usage.remaining), resetsAt: usage.resetsAt };
+        emit();
+        return true;
+    };
     const subscribe = listener => { listeners.add(listener); listener({ ...state }); return () => listeners.delete(listener); };
-    window.LuavexAuth = { state, refresh, login, logout, subscribe };
+    window.LuavexAuth = { state, refresh, login, logout, applyUsage, subscribe };
 })();
