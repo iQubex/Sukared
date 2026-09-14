@@ -12,6 +12,11 @@ const reset = '2026-09-15T00:00:00.000Z';
 
 assert.equal(quotaView({ authenticated: true, usage: { remaining: 2, resetsAt: reset } }).label, '2 BUILDS LEFT');
 assert.equal(quotaView({ authenticated: true, usage: { remaining: 1, resetsAt: reset } }).label, '1 BUILD LEFT');
+const exempt = quotaView({ authenticated: true, usage: { limit: 2, used: 0, remaining: 2, resetsAt: reset, exempt: true } });
+assert.equal(exempt.label, 'UNLIMITED');
+assert.equal(exempt.exhausted, false);
+assert.equal(exempt.visible, true);
+assert(dashboardSource.includes('const blocked = !auth.authenticated || quota.exhausted'));
 const exhausted = quotaView({ authenticated: true, usage: { remaining: 0, resetsAt: reset } });
 assert.equal(exhausted.label, 'LIMIT REACHED');
 assert.equal(exhausted.exhausted, true);
@@ -32,10 +37,13 @@ vm.runInContext(fs.readFileSync('app/auth.js', 'utf8'), authContext, { filename:
 (async () => {
     await authWindow.LuavexAuth.refresh();
     assert.equal(authWindow.LuavexAuth.state.usage.remaining, 1, 'session reload must use server usage');
-    assert.equal(authWindow.LuavexAuth.applyUsage({ limit: 2, used: 2, remaining: 0, resetsAt: reset }), true);
+    assert.equal(authWindow.LuavexAuth.applyUsage({ limit: 2, used: 2, remaining: 0, resetsAt: reset, exempt: false }), true);
     assert.equal(authWindow.LuavexAuth.state.usage.remaining, 0, 'successful response usage must be authoritative');
+    assert.equal(authWindow.LuavexAuth.applyUsage({ limit: 2, used: 0, remaining: 2, resetsAt: reset, exempt: true }), true);
+    assert.equal(authWindow.LuavexAuth.state.usage.exempt, true);
     assert.equal(authWindow.LuavexAuth.applyUsage({ remaining: 2 }), false, 'invalid client data must not replace usage');
-    assert.equal(authWindow.LuavexAuth.state.usage.remaining, 0);
+    assert.equal(authWindow.LuavexAuth.state.usage.remaining, 2);
+    assert.equal(authWindow.LuavexAuth.state.usage.exempt, true);
     assert(dashboardSource.includes("if (data.usage) window.LuavexAuth.applyUsage(data.usage)"));
     assert(dashboardSource.includes("codeValue === 'DAILY_LIMIT_REACHED' && error.usage"));
     console.log(JSON.stringify({ passed: true, display: 'PASS', zeroState: 'PASS', authoritativeRefresh: 'PASS', signedOut: 'PASS' }));

@@ -62,7 +62,7 @@
     const applyUsage = usage => {
         if (!usage || !Number.isInteger(usage.limit) || !Number.isInteger(usage.used)
             || !Number.isInteger(usage.remaining) || typeof usage.resetsAt !== 'string') return false;
-        state.usage = { limit: usage.limit, used: usage.used, remaining: Math.max(0, usage.remaining), resetsAt: usage.resetsAt };
+        state.usage = { limit: usage.limit, used: usage.used, remaining: Math.max(0, usage.remaining), resetsAt: usage.resetsAt, exempt: usage.exempt === true };
         emit();
         return true;
     };

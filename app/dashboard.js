@@ -15,6 +15,7 @@
     const quotaView = auth => {
         const usage = auth?.authenticated && auth.usage && Number.isInteger(auth.usage.remaining) ? auth.usage : null;
         if (!usage) return { visible: false, exhausted: false, label: '', note: '' };
+        if (usage.exempt === true) return { visible: true, exhausted: false, label: 'UNLIMITED', note: '' };
         const remaining = Math.max(0, usage.remaining);
         const reset = new Date(usage.resetsAt);
         const resetText = Number.isNaN(reset.getTime()) ? '' : ` Resets at ${reset.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
