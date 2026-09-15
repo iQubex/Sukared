@@ -2,6 +2,10 @@
 
 The frontend is a History API single-page application. Every browser route must serve `index.html` while static assets keep their normal paths.
 
+The primary production frontend origin is `https://luavex.pntr.dev`. The
+previous `https://sukared.onrender.com` site may remain online temporarily;
+the backend admits it only as an exact credentialed-CORS migration fallback.
+
 For a Render Static Site:
 
 - Publish directory: repository frontend root

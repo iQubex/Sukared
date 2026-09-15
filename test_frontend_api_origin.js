@@ -2,12 +2,13 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),cp=require('node:child_process');
 const {createFrontendServer}=require('./frontend-server');
 const origin='https://backend-luavex.up.railway.app';
+const siteOrigin='https://luavex.pntr.dev';
 const dashboard=process.argv.includes('--committed-dashboard')?cp.execFileSync('git',['show','HEAD:app/dashboard.js'],{encoding:'utf8'}):fs.readFileSync('app/dashboard.js','utf8');
 const api=fs.readFileSync('app/api.js','utf8');
 async function check(config){
  const requests=[];let click;
  const window={LuavexAuth:{state:{authenticated:true}},SukaRedSettings:{load:()=>({protectionFeatures:{runtimeIntegrity:true}})}};
- const context=vm.createContext({window,location:{hostname:'sukared.onrender.com',origin:'https://sukared.onrender.com'},URL,Blob,AbortController,performance,crypto:require('node:crypto').webcrypto,clearTimeout,
+ const context=vm.createContext({window,location:{hostname:new URL(siteOrigin).hostname,origin:siteOrigin},URL,Blob,AbortController,performance,crypto:require('node:crypto').webcrypto,clearTimeout,
  fetch:async(url,options)=>{requests.push({url,options});return {ok:true,json:async()=>({})}},
  getInput:()=>context.input,processing:false,disposed:true,candidate:false,status:{},errorPanel:{},controller:new AbortController(),applyAuth:()=>{},setStatus:()=>{},scheduleIdleStatus:()=>{},terminalStatus:false,statusResetTimer:null,
  obfuscate:{addEventListener:(_,fn)=>{click=fn},setAttribute(){},removeAttribute(){},classList:{add(){},remove(){}}}});
