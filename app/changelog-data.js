@@ -2,7 +2,15 @@
     'use strict';
     window.SukaRedChangelog = Object.freeze([
         Object.freeze({
-            version: 'Version 1.4 Beta', status: 'Current Beta',
+            version: 'Version 1.5 Beta', status: 'Current Beta',
+            groups: Object.freeze({
+                Added: Object.freeze(['Build-specific VM layouts', 'Expanded protected runtime representation', 'Data-bearing Unicode payload markers']),
+                Improved: Object.freeze(['VM structural diversity', 'Runtime integrity', 'Build-to-build output diversity', 'Protected instruction handling']),
+                Fixed: Object.freeze(['Discord OAuth return routing', 'Compatibility and release-path issues'])
+            })
+        }),
+        Object.freeze({
+            version: 'Version 1.4 Beta', status: 'Previous Beta',
             groups: Object.freeze({
                 Added: Object.freeze(['Static remote Lua protection']),
                 Improved: Object.freeze(['Secure resource delivery', 'Larger remote Lua sources', 'Runtime integrity']),
