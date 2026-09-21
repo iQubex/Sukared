@@ -42,8 +42,8 @@ assert(dashboardSource.includes('setTimeout(() => finish(null), 3500)'), 'Monaco
 
 for (const copy of [
     'What happens to your code?',
-    'Luavex transforms your Luau code so it is harder to read, analyze and reverse engineer while keeping the script working as intended.',
-    'Control flow, constants and runtime state are transformed during the build process.',
+    'Luavex is a Luau and Lua code obfuscator that transforms scripts to make them harder to read, analyze and reverse engineer while keeping them working as intended.',
+    'Build-specific protection, code virtualization, constants and runtime state are transformed during the build process.',
     'Not impossible to reverse. More expensive to understand.'
 ]) assert(landingSource.includes(copy), `missing landing copy: ${copy}`);
 

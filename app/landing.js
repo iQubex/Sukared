@@ -6,8 +6,8 @@
     const TYPE_INTERVAL_MS = 12;
     const INFO_COPY = Object.freeze({
         heading: 'What happens to your code?',
-        first: 'Luavex transforms your Luau code so it is harder to read, analyze and reverse engineer while keeping the script working as intended.',
-        second: 'Control flow, constants and runtime state are transformed during the build process.',
+        first: 'Luavex is a Luau and Lua code obfuscator that transforms scripts to make them harder to read, analyze and reverse engineer while keeping them working as intended.',
+        second: 'Build-specific protection, code virtualization, constants and runtime state are transformed during the build process.',
         closing: 'Not impossible to reverse. More expensive to understand.'
     });
     const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches || !window.SukaRedSettings.load().animations;
