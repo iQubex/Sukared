@@ -9,8 +9,8 @@
     const bytes = value => new Blob([String(value || '')]).size;
     const formatBytes = value => { const size = Number(value) || 0; if (size < 1024) return `${size} B`; if (size < 1048576) return `${(size / 1024).toFixed(1)} KB`; return `${(size / 1048576).toFixed(1)} MB`; };
     const lineCount = value => String(value || '').replace(/\r\n?/g, '\n').split('\n').length;
-    const inputMetadata = value => { const count = lineCount(value); return `LUAU SOURCE · ${count} ${count === 1 ? 'LINE' : 'LINES'}`; };
-    const outputMetadata = value => value ? `PROTECTED OUTPUT · ${formatBytes(bytes(value))}` : 'PROTECTED OUTPUT';
+    const inputMetadata = value => { const count = lineCount(value); return `${count} ${count === 1 ? 'LINE' : 'LINES'}`; };
+    const outputMetadata = value => value ? formatBytes(bytes(value)) : '';
     const canUseBuildShortcut = (event, disabled, processing) => Boolean(event && !event.repeat && (event.ctrlKey || event.metaKey) && event.key === 'Enter' && !disabled && !processing);
     const quotaView = auth => {
         const usage = auth?.authenticated && auth.usage && Number.isInteger(auth.usage.remaining) ? auth.usage : null;
@@ -67,21 +67,21 @@
     const view = () => {
         const configurationFailed = Boolean(window.LuavexAPI.configurationError);
         const authenticated = window.LuavexAuth.state.authenticated === true;
-        const initialStatus = configurationFailed ? 'FAILED' : authenticated ? 'ENGINE READY' : 'AUTH REQUIRED';
+        const initialStatus = configurationFailed ? 'FAILED' : authenticated ? 'READY' : 'SIGN IN';
         const initialStatusClass = configurationFailed ? ' is-error' : authenticated ? '' : ' is-auth-required';
         const initialNote = configurationFailed ? 'Workspace unavailable' : 'Connect Discord to build';
         return `
         <section class="dashboard-page page-section" aria-labelledby="workspaceTitle">
-            <header class="workspace-heading"><div><span class="eyebrow">Workspace</span><h1 id="workspaceTitle">Obfuscation Workspace</h1></div></header>
+            <header class="workspace-heading"><div><span class="eyebrow">Workspace</span><h1 id="workspaceTitle">Obfuscation Workspace</h1><p>Obfuscate your Luau code.</p></div><span class="workspace-chip">Luavex 1.6</span></header>
             <div class="editor-workspace">
                 <section class="editor-panel" aria-labelledby="inputLabel">
-                    <header><div><span id="inputLabel">INPUT</span><small class="file-state" id="fileState">LUAU SOURCE · 1 LINE</small></div><div class="editor-actions"><button class="icon-button" id="openFileBtn" type="button" aria-label="Open source file" title="Open source file"></button><button class="icon-button" id="clearBtn" type="button" aria-label="Clear input" title="Clear input"></button></div></header>
+                    <header><div><span id="inputLabel">INPUT</span><small class="file-state" id="fileState">1 LINE</small></div><div class="editor-actions"><button class="icon-button" id="openFileBtn" type="button" aria-label="Open source file" title="Open source file"></button><button class="icon-button" id="clearBtn" type="button" aria-label="Clear input" title="Clear input"></button></div></header>
                     <input id="fileInput" type="file" accept=".lua,.luau,text/plain" hidden><div class="editor-host" id="inputEditor"></div><textarea class="editor-fallback" id="inputFallback" aria-label="Input code"></textarea>
                 </section>
                 <div class="build-controls" aria-label="Build control"><div class="workspace-status${initialStatusClass}" id="workspaceStatus" role="status">${initialStatus}</div><button class="obfuscate-button" id="obfuscateBtn" type="button" aria-label="Build protected output" title="${authenticated && !configurationFailed ? 'Build protected output (Ctrl/Cmd + Enter)' : 'Connect Discord to build'}" disabled><span class="run-icon-slot"></span><span class="spinner"></span></button><small class="quota-state" id="quotaState" hidden></small><small class="auth-build-note" id="authBuildNote"${authenticated && !configurationFailed ? ' hidden' : ''}>${initialNote}</small></div>
                 <section class="editor-panel" aria-labelledby="outputLabel">
-                    <header><div><span id="outputLabel">OUTPUT</span><small id="outputState">PROTECTED OUTPUT</small></div><div class="editor-actions"><button class="icon-button" id="copyOutput" type="button" aria-label="Copy output" title="Copy output"></button><button class="icon-button" id="downloadOutput" type="button" aria-label="Download output" title="Download output"></button></div></header>
-                    <div class="editor-stack"><div class="editor-host" id="outputEditor"></div><textarea class="editor-fallback" id="outputFallback" readonly aria-label="Output code"></textarea><div class="editor-empty-state" id="outputEmptyState" aria-hidden="true">OUTPUT WILL APPEAR HERE</div><span class="sr-only" id="outputAssist" role="status" aria-live="polite">Output is empty.</span></div>
+                    <header><div><span id="outputLabel">OUTPUT</span><small id="outputState"></small></div><div class="editor-actions"><button class="icon-button" id="copyOutput" type="button" aria-label="Copy output" title="Copy output"></button><button class="icon-button" id="downloadOutput" type="button" aria-label="Download output" title="Download output"></button></div></header>
+                    <div class="editor-stack"><div class="editor-host" id="outputEditor"></div><textarea class="editor-fallback" id="outputFallback" readonly aria-label="Output code"></textarea><div class="editor-empty-state" id="outputEmptyState" aria-hidden="true">Output will appear here</div><span class="sr-only" id="outputAssist" role="status" aria-live="polite">Output is empty.</span></div>
                 </section>
             </div>
             <section class="build-summary" id="buildSummary" hidden></section><section class="inline-error" id="buildError" hidden><strong>Build failed</strong><pre></pre></section>
@@ -150,7 +150,7 @@
         const updateInputMetadata = () => { fileState.textContent = inputMetadata(getInput()); fileState.title = state.sourceName ? `${state.sourceName}${state.modified ? ' / Modified' : ''}` : 'Editor buffer'; };
         const updateOutputActions = () => { const output = getOutput(); const available = Boolean(output); copyButton.disabled = !available; downloadButton.disabled = !available; outlet.querySelector('#outputState').textContent = outputMetadata(output); outlet.querySelector('#outputEmptyState').hidden = available; outlet.querySelector('#outputAssist').textContent = available ? 'Protected output is available.' : 'Output is empty.'; };
         const setStatus = (label, modifier = '') => { status.textContent = label; status.className = `workspace-status${modifier ? ` ${modifier}` : ''}`; };
-        const idleStatus = auth => { const configurationFailed = Boolean(window.LuavexAPI.configurationError); const quota = quotaView(auth); setStatus(configurationFailed ? 'FAILED' : !auth.authenticated ? 'AUTH REQUIRED' : quota.exhausted ? 'LIMIT REACHED' : 'ENGINE READY', configurationFailed || quota.exhausted ? 'is-error' : auth.authenticated ? '' : 'is-auth-required'); };
+        const idleStatus = auth => { const configurationFailed = Boolean(window.LuavexAPI.configurationError); const quota = quotaView(auth); setStatus(configurationFailed ? 'FAILED' : !auth.authenticated ? 'SIGN IN' : quota.exhausted ? 'LIMIT' : 'READY', configurationFailed || quota.exhausted ? 'is-error' : auth.authenticated ? '' : 'is-auth-required'); };
         const scheduleIdleStatus = () => { clearTimeout(statusResetTimer); statusResetTimer = setTimeout(() => { terminalStatus = false; idleStatus(window.LuavexAuth.state); }, 2400); };
         const fallbackInputListener = () => { state.input = inputFallback.value; updateInputMetadata(); };
         inputFallback.addEventListener('input', fallbackInputListener);
@@ -189,7 +189,7 @@
             const currentSettings = window.SukaRedSettings.load();
             processing = true; const started = performance.now();
             const id = crypto.randomUUID ? crypto.randomUUID() : `LOCAL-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            terminalStatus = false; clearTimeout(statusResetTimer); setStatus('BUILDING', 'is-processing'); obfuscate.setAttribute('aria-busy', 'true'); obfuscate.disabled = true; obfuscate.classList.add('is-processing'); errorPanel.hidden = true;
+            terminalStatus = false; clearTimeout(statusResetTimer); setStatus('RUNNING', 'is-processing'); obfuscate.setAttribute('aria-busy', 'true'); obfuscate.disabled = true; obfuscate.classList.add('is-processing'); errorPanel.hidden = true;
             try {
                 const payload = candidate ? { code, bindings: developerPanel && !developerPanel.hidden ? JSON.parse(resourceBindings.value) : {}, build_id: id } : { code, features: currentSettings.protectionFeatures, resourceProtection: true };
                 const response = await fetch(apiUrl(), { method: 'POST', credentials: 'include', signal: controller.signal, headers: { 'Content-Type': 'application/json', 'x-idempotency-key': id }, body: JSON.stringify(payload) });

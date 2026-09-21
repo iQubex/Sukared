@@ -84,7 +84,7 @@
         const close = el('button', 'icon-button modal-close'); close.type = 'button'; close.setAttribute('aria-label', 'Close settings'); close.append(window.SukaRedIcons.icon('close')); close.addEventListener('click', closeModal); header.append(copy, close);
         const body = el('div', 'modal-body'); body.append(content);
         const footer = el('footer', 'modal-actions');
-        actions.forEach(action => { const button = el('button', action.primary ? 'button button-primary' : 'button', action.label); button.type = 'button'; button.addEventListener('click', action.onClick); footer.append(button); });
+        actions.forEach(action => { const button = el('button', `${action.primary ? 'button button-primary' : 'button'}${action.className ? ` ${action.className}` : ''}`, action.label); button.type = 'button'; button.addEventListener('click', action.onClick); footer.append(button); });
         dialog.append(header, body, footer); overlay.append(dialog);
         overlay.addEventListener('click', event => { if (event.target === overlay) closeModal(); });
         const keyHandler = event => {
@@ -156,11 +156,11 @@
     const openSettingsModal = trigger => {
         let draft = window.SukaRedSettings.load();
         openModal({
-            title: 'Settings', subtitle: 'Protection and workspace preferences.', trigger,
+            title: 'Settings', subtitle: 'Workspace preferences.', trigger,
             content: settingsContent(draft, value => { draft = value; }),
             actions: [
-                { label: 'Cancel', onClick: closeModal },
-                { label: 'Save Settings', primary: true, onClick: () => { window.SukaRedSettings.save(draft); document.body.classList.toggle('animations-off', !draft.animations); closeModal(); toast('Settings saved', 'success'); } }
+                { label: 'Cancel', className: 'button-cancel', onClick: closeModal },
+                { label: 'Save Settings', className: 'button-save', primary: true, onClick: () => { window.SukaRedSettings.save(draft); document.body.classList.toggle('animations-off', !draft.animations); closeModal(); toast('Settings saved', 'success'); } }
             ]
         });
     };

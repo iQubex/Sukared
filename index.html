@@ -20,16 +20,17 @@
     <script type="application/ld+json">
     {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Luavex","applicationCategory":"DeveloperApplication","operatingSystem":"Web","url":"https://luavex.pntr.dev/","description":"Luavex is a Luau and Lua code obfuscator that protects scripts with build-specific protection, runtime integrity, and server-backed validation.","softwareVersion":"1.6 Beta"}
     </script>
-    <link rel="icon" type="image/png" href="/assets/luavex-brand.png">
+    <link rel="icon" type="image/png" href="/assets/luavex-icon-blue.png">
     <link rel="stylesheet" href="/style.css?v=luavex-ux-5">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
+    <canvas class="starfield-canvas" id="starfieldCanvas" aria-hidden="true"></canvas>
     <noscript><section aria-labelledby="seo-title"><h1 id="seo-title">Luavex — Luau &amp; Lua Obfuscator</h1><p>Luavex is a Luau and Lua code obfuscator for script protection, build-specific protection, runtime integrity, and code virtualization.</p></section></noscript>
     <div class="app-shell" id="appShell">
         <header class="site-header">
             <a class="brand" href="/#/workspace" data-route aria-label="Luavex workspace">
-                <span class="brand-icon-crop" aria-hidden="true"><img src="/assets/luavex-brand.png" alt=""></span>
+                <span class="brand-icon-crop" aria-hidden="true"><img class="brand-icon-image" src="/assets/luavex-icon-blue.png" alt=""></span>
                 <span class="brand-wordmark-crop" aria-hidden="true"><img src="/assets/luavex-brand.png" alt=""></span>
                 <span class="sr-only">Luavex</span>
                 <span class="beta-badge">BETA</span>
@@ -41,8 +42,23 @@
                 <a href="/#/history" data-route data-nav="history">History</a>
             </nav>
             <div class="account-slot" id="accountSlot"></div>
-            <button class="settings-nav icon-button" id="globalSettings" type="button" aria-label="Open settings" title="Settings"></button>
         </header>
+
+        <aside class="side-dock" aria-label="Quick navigation">
+            <a href="/#/workspace" data-route data-nav="workspace" aria-label="Workspace" title="Workspace">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 9h16M9 9v10"/></svg>
+            </a>
+            <a href="/#/changelog" data-route data-nav="changelog" aria-label="Changelog" title="Changelog">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h4"/></svg>
+            </a>
+            <a href="/#/history" data-route data-nav="history" aria-label="Build history" title="Build history">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v4l3 2"/></svg>
+            </a>
+            <span class="dock-divider" aria-hidden="true"></span>
+            <button id="dockSettings" type="button" aria-label="Open settings" title="Settings">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM19 12l2-1-2-3-2 .5-1.5-1L15 5h-6L8.5 7.5l-1.5 1L5 8l-2 3 2 1v2l-2 1 2 3 2-.5 1.5 1L9 21h6l.5-2.5 1.5-1 2 .5 2-3-2-1Z"/></svg>
+            </button>
+        </aside>
 
         <main id="routeView" class="route-view" tabindex="-1"></main>
 
@@ -62,6 +78,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script src="/app/runtime-config.js"></script>
+    <script src="/app/starfield.js?v=luavex-visual-1"></script>
     <script src="/app/api.js?v=luavex-1.3"></script>
     <script src="/app/auth.js?v=luavex-ux-1"></script>
     <script src="/app/history-store.js?v=luavex-ux-5"></script>

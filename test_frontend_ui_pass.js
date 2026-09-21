@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const read = file => fs.readFileSync(file, 'utf8');
 const dashboardSource = read('app/dashboard.js');
 const landingSource = read('app/landing.js');
+const starfieldSource = read('app/starfield.js');
 const css = read('style.css');
 const html = read('index.html');
 
@@ -17,10 +18,10 @@ const helpers = context.window.SukaRedDashboard.helpers;
 assert.equal(helpers.lineCount(''), 1);
 assert.equal(helpers.lineCount('print(1)'), 1);
 assert.equal(helpers.lineCount('local a = 1\nprint(a)'), 2);
-assert.equal(helpers.inputMetadata('print(1)'), 'LUAU SOURCE · 1 LINE');
-assert.equal(helpers.inputMetadata('a\nb'), 'LUAU SOURCE · 2 LINES');
-assert.equal(helpers.outputMetadata(''), 'PROTECTED OUTPUT');
-assert.equal(helpers.outputMetadata('x'.repeat(18842)), 'PROTECTED OUTPUT · 18.4 KB');
+assert.equal(helpers.inputMetadata('print(1)'), '1 LINE');
+assert.equal(helpers.inputMetadata('a\nb'), '2 LINES');
+assert.equal(helpers.outputMetadata(''), '');
+assert.equal(helpers.outputMetadata('x'.repeat(18842)), '18.4 KB');
 
 assert.equal(helpers.canUseBuildShortcut({ key: 'Enter', ctrlKey: true, metaKey: false, repeat: false }, false, false), true);
 assert.equal(helpers.canUseBuildShortcut({ key: 'Enter', ctrlKey: false, metaKey: true, repeat: false }, false, false), true);
@@ -28,7 +29,7 @@ assert.equal(helpers.canUseBuildShortcut({ key: 'Enter', ctrlKey: true, metaKey:
 assert.equal(helpers.canUseBuildShortcut({ key: 'Enter', ctrlKey: true, metaKey: false, repeat: false }, true, false), false);
 assert.equal(helpers.canUseBuildShortcut({ key: 'Enter', ctrlKey: true, metaKey: false, repeat: false }, false, true), false);
 
-for (const status of ['AUTH REQUIRED', 'ENGINE READY', 'BUILDING', 'COMPLETE', 'FAILED']) {
+for (const status of ['SIGN IN', 'READY', 'RUNNING', 'COMPLETE', 'FAILED']) {
     assert(dashboardSource.includes(`'${status}'`) || dashboardSource.includes(`>${status}<`), `missing status ${status}`);
 }
 assert(dashboardSource.includes('resourceProtection: true'), 'existing resource-protection request flag was lost');
@@ -53,6 +54,10 @@ assert(landingSource.includes("if (typing) { completed = true; sessionStorage.se
 assert(landingSource.includes("info.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth'"));
 assert(css.includes('.boot-start:hover::after') && css.includes('.boot-start:focus-visible::after'));
 assert(css.includes('@media (prefers-reduced-motion: reduce)'));
+assert(html.includes('id="starfieldCanvas"') && html.includes('/app/starfield.js'));
+assert(starfieldSource.includes('requestAnimationFrame(render)'));
+assert(starfieldSource.includes('window.__luavexStarfield'));
+assert(css.includes('.boot-page { background: rgba(0,0,0,.12); }'));
 assert(css.includes('.build-controls { position: static; width: 100%'));
 assert(!css.includes('.build-controls { position: sticky;'));
 assert(html.includes('/style.css?v=luavex-ux-5'));

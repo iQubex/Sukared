@@ -21,16 +21,15 @@
 
     const nav = document.getElementById('siteNav');
     const navToggle = document.getElementById('navToggle');
-    const globalSettings = document.getElementById('globalSettings');
+    const dockSettings = document.getElementById('dockSettings');
     const accountSlot = document.getElementById('accountSlot');
     navToggle.append(window.SukaRedIcons.icon('menu'));
-    globalSettings.append(window.SukaRedIcons.icon('settings'));
     const closeNavigation = () => { nav.classList.remove('is-open'); navToggle.setAttribute('aria-expanded', 'false'); };
     navToggle.addEventListener('click', () => {
         const open = nav.classList.toggle('is-open');
         navToggle.setAttribute('aria-expanded', String(open));
     });
-    globalSettings.addEventListener('click', () => window.SukaRedUI.openSettingsModal(globalSettings));
+    dockSettings?.addEventListener('click', () => window.SukaRedUI.openSettingsModal(dockSettings));
 
     let removeAccountDismiss = () => {};
     const renderAccount = auth => {

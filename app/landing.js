@@ -25,12 +25,22 @@
         hero.className = 'boot-hero';
         const logoFrame = document.createElement('div');
         logoFrame.className = 'boot-logo-frame';
+        const logoLockup = document.createElement('div');
+        logoLockup.className = 'boot-logo-lockup';
         const logo = document.createElement('img');
-        logo.className = 'boot-logo';
-        logo.src = '/assets/luavex-brand.png';
-        logo.alt = 'Luavex';
+        logo.className = 'boot-logo-icon';
+        logo.src = '/assets/luavex-icon-blue.png';
+        logo.alt = '';
         logo.decoding = 'async';
-        logoFrame.append(logo);
+        const wordmark = document.createElement('span');
+        wordmark.className = 'landing-wordmark-crop';
+        wordmark.setAttribute('aria-hidden', 'true');
+        const wordmarkImage = document.createElement('img');
+        wordmarkImage.src = '/assets/luavex-brand.png';
+        wordmarkImage.alt = 'Luavex';
+        wordmark.append(wordmarkImage);
+        logoLockup.append(logo, wordmark);
+        logoFrame.append(logoLockup);
 
         const title = document.createElement('h1');
         title.id = 'bootTitle';
