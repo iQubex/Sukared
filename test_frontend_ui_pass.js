@@ -60,7 +60,7 @@ assert(starfieldSource.includes('window.__luavexStarfield'));
 assert(css.includes('.boot-page { background: rgba(0,0,0,.12); }'));
 assert(css.includes('.build-controls { position: static; width: 100%'));
 assert(!css.includes('.build-controls { position: sticky;'));
-assert(html.includes('/style.css?v=luavex-ux-5'));
+assert(html.includes('/style.css?v=luavex-ux-6'));
 assert(html.includes('/app/landing.js?v=luavex-ux-2'));
 assert(html.includes('/app/dashboard.js?v=luavex-ux-2'));
 
