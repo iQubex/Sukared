@@ -2,7 +2,15 @@
     'use strict';
     window.SukaRedChangelog = Object.freeze([
         Object.freeze({
-            version: 'Version 1.5 Beta', status: 'Current Beta',
+            version: 'Version 1.6 Beta', status: 'Current Beta',
+            groups: Object.freeze({
+                Added: Object.freeze(['Strengthened server-backed runtime validation', 'Replay-resistant request handling', 'Signed runtime responses']),
+                Improved: Object.freeze(['Build and session binding', 'Delayed runtime materialization', 'Callback and runtime semantics']),
+                Fixed: Object.freeze(['Compatibility and release-path issues'])
+            })
+        }),
+        Object.freeze({
+            version: 'Version 1.5 Beta', status: 'Previous Beta',
             groups: Object.freeze({
                 Added: Object.freeze(['Build-specific VM layouts', 'Expanded protected runtime representation', 'Data-bearing Unicode payload markers']),
                 Improved: Object.freeze(['VM structural diversity', 'Runtime integrity', 'Build-to-build output diversity', 'Protected instruction handling']),
@@ -18,8 +26,7 @@
             })
         }),
         Object.freeze({
-            version: 'Version 1.3',
-            status: 'Previous Beta',
+            version: 'Version 1.3', status: 'Previous Beta',
             groups: Object.freeze({
                 Added: Object.freeze(['Versioned Luavex output signature', 'Unified protection workflow']),
                 Improved: Object.freeze(['Protection settings', 'Public service routing', 'Deployment readiness', 'Output consistency']),
@@ -27,8 +34,7 @@
             })
         }),
         Object.freeze({
-            version: 'Version 1.2',
-            status: 'Previous Beta',
+            version: 'Version 1.2', status: 'Previous Beta',
             groups: Object.freeze({
                 Added: Object.freeze(['Discord account integration', 'Account-based build history', 'Live build progress']),
                 Improved: Object.freeze(['Workspace and menu design', 'Build animation', 'Mobile experience', 'Protection systems', 'Lua/Luau compatibility']),
@@ -36,8 +42,7 @@
             })
         }),
         Object.freeze({
-            version: 'Version 1.1',
-            status: 'Previous Beta',
+            version: 'Version 1.1', status: 'Previous Beta',
             groups: Object.freeze({
                 Added: Object.freeze(['Progressive build transition preview', 'Clearer workspace status feedback']),
                 Improved: Object.freeze(['Workspace navigation', 'Protection settings', 'Lua/Luau script compatibility']),
@@ -45,8 +50,7 @@
             })
         }),
         Object.freeze({
-            version: 'Version 1.0',
-            status: 'Archive',
+            version: 'Version 1.0', status: 'Archive',
             groups: Object.freeze({
                 Added: Object.freeze(['Initial public beta', 'Protection settings', 'Local build history']),
                 Improved: Object.freeze(['Build reporting', 'Large-script handling', 'General Lua/Luau compatibility']),

@@ -116,7 +116,7 @@ for (const routeName of ['workspace', 'dashboard', 'history', 'changelog', 'cred
     assert(read(`${routeName}/index.html`).includes("location.replace('/#'"), `missing static fallback for ${routeName}`);
 }
 assert(html.includes('id="accountSlot"') && html.includes('href="/#/history"'), 'account navigation is missing');
-assert(html.includes('Luavex 1.3') && main.includes('Luavex 1.3'), 'public version is inconsistent');
+assert(html.includes('Luavex 1.6 Beta') && main.includes('Luavex 1.6 Beta'), 'public version is inconsistent');
 assert(html.includes('/assets/luavex-brand.png'), 'Luavex logo asset is not connected');
 assert(read('app/landing.js').includes("start.textContent = 'START'"), 'landing action label must be START');
 assert(changelog.indexOf('Version 1.3') < changelog.indexOf('Version 1.2'), 'current release must appear first');
