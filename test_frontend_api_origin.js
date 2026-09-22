@@ -19,7 +19,7 @@ async function check(config){
  assert(start>=0&&end>start);vm.runInContext(dashboard.slice(start,end).replace('const runBuild =', 'runBuild ='),context);click=context.runBuild;
  for(const input of ['print("hello")','loadstring(game:HttpGet("https://raw.githubusercontent.com/example/project/main/test.lua"))()']){
   context.input=input;await click();
-  const r=requests.at(-1);assert.equal(r.url,origin+'/obfuscate');assert.equal(r.options.method,'POST');assert.equal(r.options.credentials,'include');
+  const r=requests.at(-1);assert.equal(r.url,config?siteOrigin+'/api/obfuscate':origin+'/obfuscate');assert.equal(r.options.method,'POST');assert.equal(r.options.credentials,'include');
   assert.equal(JSON.parse(r.options.body).code,input);assert.equal(JSON.parse(r.options.body).features.runtimeIntegrity,true);
  }
  assert.equal(requests.length,2);
@@ -33,6 +33,6 @@ async function check(config){
  }finally{if(server)await new Promise(r=>server.close(r));if(oldEnv===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=oldEnv;if(oldBase===undefined)delete process.env.LUAVEX_API_BASE;else process.env.LUAVEX_API_BASE=oldBase;}
  const local={window:{},location:{hostname:'localhost',origin:'http://localhost:8080'},URL,fetch:async()=>({ok:true,json:async()=>({resourceCandidate:false,obfuscatePath:'/obfuscate'})})};
  vm.runInNewContext(api,local);await local.window.LuavexAPI.ready;assert.equal(local.window.LuavexAPI.base,'http://localhost:3001');
- console.log(JSON.stringify({passed:true,normalRequests:3,resourceRequests:3,staticConfig:'PASS',generatedConfig:'PASS',productionFallback:'PASS',localFallback:'PASS',url:origin+'/obfuscate'}));
+ console.log(JSON.stringify({passed:true,normalRequests:3,resourceRequests:3,staticConfig:'PASS',generatedConfig:'PASS',sameOriginProxy:'PASS',localFallback:'PASS',url:'/api/obfuscate'}));
 })().catch(e=>{console.error(e);process.exitCode=1});
 

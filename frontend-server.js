@@ -1,12 +1,14 @@
 'use strict';
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
 const root = __dirname;
 const port = Number(process.env.PORT || process.env.FRONTEND_PORT) || 8080;
 const host = process.env.HOST || '0.0.0.0';
+const productionBackend = 'https://backend-luavex.up.railway.app';
 const mime = {
     '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
@@ -21,18 +23,63 @@ const send = (res, file) => {
     });
 };
 
-const createFrontendServer = () => http.createServer((req, res) => {
-    let pathname;
-    try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
+const proxyHeaders = headers => {
+    const output = { ...headers };
+    for (const name of ['host', 'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+        'te', 'trailer', 'transfer-encoding', 'upgrade', 'forwarded', 'x-forwarded-for',
+        'x-forwarded-host', 'x-forwarded-port', 'x-forwarded-proto']) delete output[name];
+    return output;
+};
+
+const proxyResponseHeaders = headers => {
+    const output = { ...headers };
+    for (const name of ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+        'te', 'trailer', 'transfer-encoding', 'upgrade']) delete output[name];
+    return output;
+};
+
+const proxy = (req, res, upstream, pathname, search) => {
+    const transport = upstream.protocol === 'https:' ? https : http;
+    const request = transport.request({
+        protocol: upstream.protocol,
+        hostname: upstream.hostname,
+        port: upstream.port || undefined,
+        method: req.method,
+        path: `${pathname}${search}`,
+        headers: proxyHeaders(req.headers)
+    }, response => {
+        res.writeHead(response.statusCode || 502, proxyResponseHeaders(response.headers));
+        response.pipe(res);
+    });
+    request.setTimeout(40_000, () => request.destroy(new Error('Upstream timeout')));
+    request.on('error', () => {
+        if (!res.headersSent) res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ status: 'error', code: 'UPSTREAM_UNAVAILABLE', message: 'Service unavailable.' }));
+    });
+    req.pipe(request);
+};
+
+const createFrontendServer = ({ apiUpstream } = {}) => http.createServer((req, res) => {
+    let parsed, pathname;
+    try { parsed = new URL(req.url, 'http://localhost'); pathname = decodeURIComponent(parsed.pathname); }
     catch { res.writeHead(400); res.end('Invalid request.'); return; }
-    if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405); res.end(); return; }
     if (pathname.includes('\\') || pathname.includes('\0') || pathname.split('/').some(p => p === '..' || p.startsWith('.'))) {
         res.writeHead(404); res.end('Not found.'); return;
     }
+    const upstream = new URL(apiUpstream || process.env.LUAVEX_API_BASE || productionBackend);
+    if (pathname === '/auth' || pathname.startsWith('/auth/')) {
+        proxy(req, res, upstream, pathname, parsed.search); return;
+    }
+    if (pathname === '/api' || pathname.startsWith('/api/')) {
+        const target = pathname.slice(4) || '/';
+        proxy(req, res, upstream, target, parsed.search); return;
+    }
+    if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405); res.end(); return; }
     if (pathname === '/app/runtime-config.js') {
-        const apiBase = String(process.env.LUAVEX_API_BASE || (process.env.NODE_ENV === 'production' ? 'https://backend-luavex.up.railway.app' : '')).replace(/\/+$/, '');
+        const local = process.env.NODE_ENV !== 'production';
+        const apiBase = local ? String(process.env.LUAVEX_API_BASE || '').replace(/\/+$/, '') : '';
         res.writeHead(200, { 'Content-Type': mime['.js'], 'Cache-Control': 'no-store' });
-        res.end(`window.LUAVEX_CONFIG=Object.freeze({apiBase:${JSON.stringify(apiBase)}});`);
+        res.end(`window.LUAVEX_CONFIG=Object.freeze({apiBase:${JSON.stringify(apiBase)},sameOriginProxy:${local ? 'false' : 'true'}});`);
         return;
     }
     // This repository also contains backend state and server fixtures. Only
