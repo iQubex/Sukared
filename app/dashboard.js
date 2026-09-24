@@ -72,7 +72,7 @@
         const initialNote = configurationFailed ? 'Workspace unavailable' : 'Connect Discord to build';
         return `
         <section class="dashboard-page page-section" aria-labelledby="workspaceTitle">
-            <header class="workspace-heading"><div><span class="eyebrow">Workspace</span><h1 id="workspaceTitle">Obfuscation Workspace</h1><p>Obfuscate your Luau code.</p></div><span class="workspace-chip">Luavex 1.6</span></header>
+            <header class="workspace-heading"><div><span class="eyebrow">Workspace</span><h1 id="workspaceTitle">Obfuscation Workspace</h1><p>Obfuscate your Luau code.</p></div><span class="workspace-chip">Luavex 1.7</span></header>
             <div class="editor-workspace">
                 <section class="editor-panel" aria-labelledby="inputLabel">
                     <header><div><span id="inputLabel">INPUT</span><small class="file-state" id="fileState">1 LINE</small></div><div class="editor-actions"><button class="icon-button" id="openFileBtn" type="button" aria-label="Open source file" title="Open source file"></button><button class="icon-button" id="clearBtn" type="button" aria-label="Clear input" title="Clear input"></button></div></header>

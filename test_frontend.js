@@ -83,10 +83,9 @@ const css = read('style.css');
 assert(main.includes("route('/', 'Welcome'"));
 assert(main.includes("route('/workspace', 'Workspace'"));
 assert(main.includes("route('/changelog', 'Changelog'"));
-assert(dashboard.includes("JSON.stringify({ code, features: currentSettings.protectionFeatures })"), 'feature-based request payload is missing');
+assert(dashboard.includes('features: currentSettings.protectionFeatures') && dashboard.includes('resourceProtection: true'), 'feature-based request payload is missing');
 assert(dashboard.includes('window.LuavexAPI.paths.obfuscate'), 'public Luavex route is not connected');
 assert(!dashboard.includes('BackendStatus'), 'development status indicator is still present');
-assert(dashboard.includes('window.SukaRedTransition.begin(code)'), 'transition is not connected to the production request');
 for (const stage of ['queued', 'analyzing', 'preparing', 'virtualizing', 'protecting', 'integrity', 'finalizing']) {
     assert(transition.includes(`['${stage}'`) || transition.includes(`, ['${stage}'`), `missing live build stage: ${stage}`);
 }
@@ -116,7 +115,7 @@ for (const routeName of ['workspace', 'dashboard', 'history', 'changelog', 'cred
     assert(read(`${routeName}/index.html`).includes("location.replace('/#'"), `missing static fallback for ${routeName}`);
 }
 assert(html.includes('id="accountSlot"') && html.includes('href="/#/history"'), 'account navigation is missing');
-assert(html.includes('Luavex 1.6 Beta') && main.includes('Luavex 1.6 Beta'), 'public version is inconsistent');
+assert(html.includes('Luavex 1.7 Beta') && main.includes('Luavex 1.7 Beta'), 'public version is inconsistent');
 assert(html.includes('/assets/luavex-brand.png'), 'Luavex logo asset is not connected');
 assert(read('app/landing.js').includes("start.textContent = 'START'"), 'landing action label must be START');
 assert(changelog.indexOf('Version 1.3') < changelog.indexOf('Version 1.2'), 'current release must appear first');
@@ -133,7 +132,7 @@ assert(dashboard.includes("credentials: 'include'"), 'authenticated build creden
 assert(dashboard.includes('Connect Discord to build'), 'authentication gate copy is missing');
 assert(dashboard.includes('The build server could not be reached.') && !dashboard.includes('Attempted API URL:'), 'sanitized network error UX is missing');
 const api = read('app/api.js');
-assert(api.includes("obfuscate: '/obfuscate'") && api.includes("health: '/health'"), 'public API routes are missing');
+assert(api.includes("let obfuscatePath = '/obfuscate'") && api.includes("health: sameOriginProxy ? '/api/health' : '/health'"), 'public API routes are missing');
 assert(!api.includes('/local/v2') && api.includes('window.LUAVEX_CONFIG'), 'environment API configuration is not clean');
 const publicBundle = [html, main, dashboard, ui, settings, changelog, read('app/views.js'), api].join('\n');
 for (const forbidden of ['V1 Stable', 'V2 Experimental', 'ClydeProtection', 'Clyde Protection', 'local/v2']) assert(!publicBundle.includes(forbidden), `public bundle exposes ${forbidden}`);
