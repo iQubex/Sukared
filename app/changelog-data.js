@@ -2,7 +2,20 @@
     'use strict';
     window.SukaRedChangelog = Object.freeze([
         Object.freeze({
-            version: 'Version 1.7 Beta', status: 'Current Beta',
+            version: 'Version 1.8', status: 'Current',
+            groups: Object.freeze({
+                Added: Object.freeze([
+                    'Expanded protection for generated scripts.',
+                    'Additional safeguards for runtime integrity and ownership attribution.'
+                ]),
+                Improved: Object.freeze([
+                    'Greater diversity in protected output.',
+                    'Improved resilience against tampering and compatibility issues.'
+                ])
+            })
+        }),
+        Object.freeze({
+            version: 'Version 1.7 Beta', status: 'Previous',
             groups: Object.freeze({
                 Added: Object.freeze(['Instruction dependency protection', 'Per-invocation prototype activation state', 'Cross-layer integrity binding', 'Structural runtime control-flow diversity']),
                 Improved: Object.freeze(['Cross-build and cross-prototype isolation', 'Runtime state diversity across builds', 'Callback and closure integrity integration', 'Tamper resistance for instruction structure and runtime transitions'])
