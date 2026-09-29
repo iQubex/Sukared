@@ -2,7 +2,20 @@
     'use strict';
     window.SukaRedChangelog = Object.freeze([
         Object.freeze({
-            version: 'Version 1.8', status: 'Current',
+            version: 'Version 1.9', status: 'Current',
+            groups: Object.freeze({
+                Added: Object.freeze([
+                    'Deep Constant Protection.'
+                ]),
+                Improved: Object.freeze([
+                    'Greater variation in protected output across builds.',
+                    'More consistent runtime handling of protected data.',
+                    'Broader validation across varied build conditions.'
+                ])
+            })
+        }),
+        Object.freeze({
+            version: 'Version 1.8', status: 'Previous',
             groups: Object.freeze({
                 Added: Object.freeze([
                     'Expanded protection for generated scripts.',
