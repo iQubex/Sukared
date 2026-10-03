@@ -12,13 +12,14 @@ const productionBackend = 'https://backend-luavex.up.railway.app';
 const mime = {
     '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
+    '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8',
     '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon'
 };
 
-const send = (res, file) => {
+const send = (res, file, status = 200) => {
     fs.readFile(file, (error, data) => {
         if (error) { res.writeHead(500); res.end('Unable to read frontend asset.'); return; }
-        res.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+        res.writeHead(status, { 'Content-Type': mime[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
         res.end(data);
     });
 };
@@ -86,7 +87,7 @@ const createFrontendServer = ({ apiUpstream } = {}) => http.createServer((req, r
     // frontend assets may be served, even in local development.
     const publicRoot = pathname.startsWith('/app/') ? path.join(root, 'app')
         : pathname.startsWith('/assets/') ? path.join(root, 'assets') : null;
-    if (publicRoot || ['/index.html', '/style.css'].includes(pathname)) {
+    if (publicRoot || ['/index.html', '/style.css', '/robots.txt', '/sitemap.xml', '/releases.html'].includes(pathname)) {
         const candidate = path.resolve(root, `.${pathname}`);
         if (mime[path.extname(candidate)] && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
             const real = fs.realpathSync(candidate);
@@ -98,9 +99,9 @@ const createFrontendServer = ({ apiUpstream } = {}) => http.createServer((req, r
         res.writeHead(404); res.end('Not found.'); return;
     }
     if (['/', '/workspace', '/dashboard', '/history', '/changelog', '/settings', '/credits'].includes(pathname)) {
-        send(res, path.join(root, 'index.html')); return;
+        send(res, path.join(root, pathname === '/' ? 'index.html' : `${pathname.slice(1)}/index.html`)); return;
     }
-    res.writeHead(404); res.end('Not found.');
+    send(res, path.join(root, '404.html'), 404);
 });
 if (require.main === module) createFrontendServer().listen(port, host, () => console.log(`Luavex frontend listening on ${host}:${port}`));
 module.exports = { createFrontendServer };

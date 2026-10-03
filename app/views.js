@@ -147,11 +147,12 @@
     };
 
     const changelog = ({ outlet }) => {
-        const page = el('section', 'content-page page-section changelog-page'); page.append(heading('Release Notes', 'Changelog', 'Verified product changes for the current public beta.'));
+        const page = el('section', 'content-page page-section changelog-page'); page.append(heading('Release Notes', 'Changelog', `What changed in Luavex. ${window.LuavexRelease.version} is the current release.`));
         const entries = window.SukaRedChangelog || [];
         const timeline = el('div', 'changelog-list');
         entries.forEach(entry => {
             const card = el('article', 'changelog-entry'); const top = el('header', 'changelog-top');
+            card.dataset.release = entry.status;
             top.append(el('h2', '', entry.version), el('span', 'status-badge', entry.status)); card.append(top);
             Object.entries(entry.groups).forEach(([group, changes]) => { const section = el('section', 'change-group'); section.append(el('h3', '', group)); const list = el('ul'); changes.forEach(change => list.append(el('li', '', change))); section.append(list); card.append(section); });
             timeline.append(card);

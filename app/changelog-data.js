@@ -2,7 +2,23 @@
     'use strict';
     window.SukaRedChangelog = Object.freeze([
         Object.freeze({
-            version: 'Version 1.9', status: 'Current',
+            version: 'Luavex 2.0 — VM Architecture Redesign', status: 'Current',
+            groups: Object.freeze({
+                Improved: Object.freeze([
+                    'Redesigned protected runtime with layered loading and execution.',
+                    'Greater variation in execution and structure across builds.',
+                    'Tighter state isolation and clearer separation between loading and protected execution.',
+                    'Runtime performance and compatibility improvements.'
+                ]),
+                'Website & experience': Object.freeze([
+                    'Refreshed website with a consistent landing and workspace design.',
+                    'Improved responsive layouts, keyboard navigation and accessibility.',
+                    'Refined background motion with reduced-motion support.'
+                ])
+            })
+        }),
+        Object.freeze({
+            version: 'Version 1.9', status: 'Previous',
             groups: Object.freeze({
                 Added: Object.freeze([
                     'Deep Constant Protection.'

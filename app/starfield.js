@@ -8,7 +8,7 @@
     if (!context) return;
 
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-    const state = { width: 0, height: 0, scale: 1, stars: [], points: [], frame: 0, lastTime: 0 };
+    const state = { width: 0, height: 0, scale: 1, stars: [], points: [], frame: 0, lastTime: 0, pace: 1 };
     const random = (minimum, maximum) => minimum + Math.random() * (maximum - minimum);
 
     const createStar = (initial = false) => {
@@ -105,11 +105,11 @@
         const delta = Math.min((time - (state.lastTime || time)) / 1000, .035);
         state.lastTime = time;
         context.clearRect(0, 0, state.width, state.height);
-        drawPoints(time, delta);
+        drawPoints(time, delta * state.pace);
         for (let index = 0; index < state.stars.length; index++) {
             const star = state.stars[index];
-            star.x += star.speed * delta;
-            star.y -= star.speed * star.rise * delta;
+            star.x += star.speed * delta * state.pace;
+            star.y -= star.speed * star.rise * delta * state.pace;
             if (star.x - star.length > state.width + 40 || star.y < -40) state.stars[index] = createStar();
             drawStar(state.stars[index]);
         }
@@ -120,11 +120,14 @@
         cancelAnimationFrame(state.frame);
         context.clearRect(0, 0, state.width, state.height);
         state.lastTime = 0;
-        if (!reducedMotion.matches && !document.hidden) state.frame = requestAnimationFrame(render);
+        state.pace = document.body.classList.contains('route-landing') ? .32 : .7;
+        if (!reducedMotion.matches && !document.hidden && !document.body.classList.contains('animations-off')) state.frame = requestAnimationFrame(render);
     };
     addEventListener('resize', resize, { passive: true });
     document.addEventListener('visibilitychange', syncMotion);
     reducedMotion.addEventListener?.('change', syncMotion);
+    // The same canvas survives route changes. Only route/settings changes resync it.
+    new MutationObserver(syncMotion).observe(document.body, { attributes: true, attributeFilter: ['class'] });
     window.__luavexStarfield = Object.freeze({ canvas, syncMotion });
     resize();
     syncMotion();

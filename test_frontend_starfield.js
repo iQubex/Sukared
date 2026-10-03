@@ -1,0 +1,30 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('app/starfield.js', 'utf8');
+const frames = new Map(), classes = new Set(['route-landing']), events = {};
+let id = 0, observeClasses, motionChange, strokes = [], clears = 0;
+const context2d = { setTransform() {}, clearRect() { clears++; strokes = []; }, beginPath() {}, moveTo() {}, lineTo(x,y) { strokes.push([x,y]); }, stroke() {}, arc() {}, fill() {} };
+const canvas = { style: {}, getContext() { return context2d; } };
+const media = { matches: false, addEventListener(_, fn) { motionChange = fn; } };
+const document = { hidden: false, body: { classList: { contains: name => classes.has(name) } }, getElementById() { return canvas; }, addEventListener(name, fn) { events[name] = fn; } };
+const sandbox = { window: {}, document, matchMedia: () => media, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 3,
+    requestAnimationFrame(fn) { frames.set(++id, fn); return id; }, cancelAnimationFrame(n) { frames.delete(n); }, addEventListener() {},
+    MutationObserver: class { constructor(fn) { observeClasses = fn; } observe(body, opts) { assert.equal(body, document.body); assert.equal(opts.attributeFilter[0], 'class'); } } };
+vm.createContext(sandbox); vm.runInContext(source, sandbox);
+assert.equal(canvas.width, 2560, 'DPR must be capped at 2');
+const step = time => { assert.equal(frames.size, 1); const [n,fn] = frames.entries().next().value; frames.delete(n); fn(time); };
+step(1000); const first = strokes[0][0]; step(1020); assert(strokes[0][0] > first, 'stars must actually move'); const landingDelta = strokes[0][0] - first;
+classes.delete('route-landing'); observeClasses(); step(2000); const workspaceFirst = strokes[0][0]; step(2020);
+assert(strokes[0][0] - workspaceFirst > landingDelta, 'landing motion should be slower than workspace');
+assert.equal(frames.size, 1, 'route change must not duplicate animation loops');
+vm.runInContext(source, sandbox); assert.equal(frames.size, 1, 'duplicate initialization must reuse the canvas');
+classes.add('animations-off'); observeClasses(); assert.equal(frames.size, 0, 'user animation preference must stop work');
+classes.delete('animations-off'); observeClasses(); assert.equal(frames.size, 1);
+document.hidden = true; events.visibilitychange(); assert.equal(frames.size, 0, 'hidden tab must pause');
+document.hidden = false; events.visibilitychange(); assert.equal(frames.size, 1);
+media.matches = true; motionChange(); assert.equal(frames.size, 0, 'reduced motion must stop work');
+media.matches = false; motionChange(); assert.equal(frames.size, 1);
+assert(clears > 0);
+console.log('Starfield motion, route reuse, DPR cap, settings, hidden-tab and reduced-motion lifecycle: PASS');

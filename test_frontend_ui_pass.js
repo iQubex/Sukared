@@ -41,18 +41,11 @@ assert(dashboardSource.includes("outlet.addEventListener('keydown', shortcutList
 assert(dashboardSource.includes("outlet.removeEventListener('keydown', shortcutListener)"));
 assert(dashboardSource.includes('setTimeout(() => finish(null), 3500)'), 'Monaco fallback timeout is missing');
 
-for (const copy of [
-    'What happens to your code?',
-    'Luavex is a Luau and Lua code obfuscator that transforms scripts to make them harder to read, analyze and reverse engineer while keeping them working as intended.',
-    'Build-specific protection, code virtualization, constants and runtime state are transformed during the build process.',
-    'Not impossible to reverse. More expensive to understand.'
-]) assert(landingSource.includes(copy), `missing landing copy: ${copy}`);
-
-assert(landingSource.includes("sessionStorage.getItem(INFO_SESSION_KEY)"));
-assert(landingSource.includes('if (completed || reducedMotion())'));
-assert(landingSource.includes("if (typing) { completed = true; sessionStorage.setItem(INFO_SESSION_KEY, '1'); showCompleteInfo(); return; }"));
-assert(landingSource.includes("info.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth'"));
-assert(css.includes('.boot-start:hover::after') && css.includes('.boot-start:focus-visible::after'));
+for (const copy of ['window.LuavexRelease.name', 'Current release', 'VM Architecture Redesign', 'Previous release', 'Open workspace']) {
+    assert(landingSource.includes(copy), 'missing public landing copy: ' + copy);
+}
+assert(!landingSource.includes('setTimeout'), 'public product content must not wait for a boot/typewriter timer');
+assert(landingSource.includes('page.removeEventListener'), 'landing route listener cleanup missing');
 assert(css.includes('@media (prefers-reduced-motion: reduce)'));
 assert(html.includes('id="starfieldCanvas"') && html.includes('/app/starfield.js'));
 assert(starfieldSource.includes('requestAnimationFrame(render)'));
@@ -60,9 +53,9 @@ assert(starfieldSource.includes('window.__luavexStarfield'));
 assert(css.includes('.boot-page { background: rgba(0,0,0,.12); }'));
 assert(css.includes('.build-controls { position: static; width: 100%'));
 assert(!css.includes('.build-controls { position: sticky;'));
-assert(html.includes('/style.css?v=luavex-ux-6'));
-assert(html.includes('/app/landing.js?v=luavex-ux-2'));
-assert(html.includes('/app/dashboard.js?v=luavex-ux-2'));
+assert(html.includes('/style.css?v=luavex-web-2.0'));
+assert(html.includes('/app/landing.js?v=luavex-web-2.0'));
+assert(html.includes('/app/dashboard.js?v=luavex-2.0'));
 
 console.log(JSON.stringify({
     metadata: 'PASS',
@@ -70,7 +63,7 @@ console.log(JSON.stringify({
     buildControl: 'PASS',
     keyboardShortcut: 'PASS',
     landingInfo: 'PASS',
-    typewriter: 'PASS',
+    immediateContent: 'PASS',
     reducedMotion: 'PASS',
     responsiveControl: 'PASS'
 }, null, 2));
