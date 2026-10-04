@@ -117,6 +117,7 @@
     };
 
     const syncMotion = () => {
+        document.documentElement.classList.toggle('ambient-paused', document.hidden);
         cancelAnimationFrame(state.frame);
         context.clearRect(0, 0, state.width, state.height);
         state.lastTime = 0;

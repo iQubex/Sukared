@@ -8,7 +8,7 @@ let id = 0, observeClasses, motionChange, strokes = [], clears = 0;
 const context2d = { setTransform() {}, clearRect() { clears++; strokes = []; }, beginPath() {}, moveTo() {}, lineTo(x,y) { strokes.push([x,y]); }, stroke() {}, arc() {}, fill() {} };
 const canvas = { style: {}, getContext() { return context2d; } };
 const media = { matches: false, addEventListener(_, fn) { motionChange = fn; } };
-const document = { hidden: false, body: { classList: { contains: name => classes.has(name) } }, getElementById() { return canvas; }, addEventListener(name, fn) { events[name] = fn; } };
+const document = { hidden: false, documentElement: { classList: { toggle(name, value) { this.paused = value; } } }, body: { classList: { contains: name => classes.has(name) } }, getElementById() { return canvas; }, addEventListener(name, fn) { events[name] = fn; } };
 const sandbox = { window: {}, document, matchMedia: () => media, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 3,
     requestAnimationFrame(fn) { frames.set(++id, fn); return id; }, cancelAnimationFrame(n) { frames.delete(n); }, addEventListener() {},
     MutationObserver: class { constructor(fn) { observeClasses = fn; } observe(body, opts) { assert.equal(body, document.body); assert.equal(opts.attributeFilter[0], 'class'); } } };
@@ -22,7 +22,7 @@ assert.equal(frames.size, 1, 'route change must not duplicate animation loops');
 vm.runInContext(source, sandbox); assert.equal(frames.size, 1, 'duplicate initialization must reuse the canvas');
 classes.add('animations-off'); observeClasses(); assert.equal(frames.size, 0, 'user animation preference must stop work');
 classes.delete('animations-off'); observeClasses(); assert.equal(frames.size, 1);
-document.hidden = true; events.visibilitychange(); assert.equal(frames.size, 0, 'hidden tab must pause');
+document.hidden = true; events.visibilitychange(); assert.equal(frames.size, 0, 'hidden tab must pause'); assert.equal(document.documentElement.classList.paused, true);
 document.hidden = false; events.visibilitychange(); assert.equal(frames.size, 1);
 media.matches = true; motionChange(); assert.equal(frames.size, 0, 'reduced motion must stop work');
 media.matches = false; motionChange(); assert.equal(frames.size, 1);

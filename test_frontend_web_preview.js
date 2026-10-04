@@ -40,4 +40,11 @@ for (const file of ['app/main.js', 'app/dashboard.js', 'app/views.js']) {
     assert(source.includes('window.LuavexRelease.'), file + ' must use the frontend release source');
     assert(!/Luavex 1\.9|1\.9 is the current/.test(source));
 }
+const planetAsset = fs.readFileSync('assets/luavex-ringed-planet.svg', 'utf8').trim();
+const planetInline = html.match(/<svg class="web-planet"[\s\S]*?<\/svg>/)[0];
+assert.equal(planetInline.replace(' class="web-planet" aria-hidden="true" focusable="false"', ''), planetAsset, 'inline and local planet must stay identical');
+const planetCss = fs.readFileSync('style.css', 'utf8');
+assert.match(planetCss, /html\.ambient-paused \.web-planet g \{ animation-play-state: paused/);
+assert.match(planetCss, /\.animations-off \.web-planet g \{ animation: none !important/);
+assert.match(planetCss, /@media \(prefers-reduced-motion: reduce\) \{ \.web-planet g \{ animation: none !important/);
 console.log('Public preview content, release status, section navigation and cleanup: PASS');

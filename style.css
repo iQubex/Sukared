@@ -994,3 +994,82 @@ html:has(body.route-landing) { min-width: 0; }
     .web-balance { padding-block: 60px; }
     .web-footer { gap: 24px; }
 }
+
+/* Quiet vector atmosphere; decorative layers never participate in layout. */
+.web-landing { position: relative; isolation: isolate; overflow: clip; }
+.web-landing > * { position: relative; z-index: 1; }
+.web-landing > .web-planet,
+body:has(.dashboard-page):not(.route-landing)::after {
+    content: ''; pointer-events: none;
+    background: url('assets/luavex-ringed-planet.svg') center / contain no-repeat;
+    aspect-ratio: 820 / 520;
+    animation: planet-drift 72s ease-in-out infinite alternate;
+}
+.web-landing > .web-planet { position: absolute; z-index: 0; top: -90px; right: calc(50% - 680px); width: min(1040px,84vw); opacity: .42; }
+body:has(.dashboard-page):not(.route-landing)::after { position: fixed; z-index: 0; right: -310px; bottom: -160px; width: 720px; opacity: .045; animation-duration: 60s; }
+@keyframes planet-drift { from { transform: translate(0,0) scale(1) rotate(-.35deg); } to { transform: translate(-6px,8px) scale(1.012) rotate(.35deg); } }
+html.ambient-paused .web-landing > .web-planet,
+html.ambient-paused body::after { animation-play-state: paused; }
+.animations-off .web-landing > .web-planet,
+body.animations-off::after { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+    .web-landing > .web-planet, body::after { animation: none !important; }
+}
+@media (max-width: 760px) {
+    .web-landing > .web-planet { top: 560px; right: calc(50% - 240px); width: 480px; opacity: .3; }
+    body:has(.dashboard-page):not(.route-landing)::after { display: none; }
+}
+
+@media (min-width: 701px) and (max-width: 1000px) {
+    .web-landing > .web-planet { top: -20px; right: calc(50% - 450px); width: 740px; opacity: .32; }
+}
+
+@media (max-width: 700px) {
+    /* Give the mobile motif breathing room above the secondary visual. */
+    .web-hero .web-architecture-visual { margin-top: 130px; }
+}
+
+/* Inline body bands can follow page-level motion preferences without a new loop. */
+.web-landing > .web-planet { height: auto; background: none; pointer-events: none; }
+.planet-bands-slow { transform-origin: 410px 260px; animation: planet-bands 64s ease-in-out infinite alternate; }
+.planet-bands-soft { transform-origin: 410px 260px; animation: planet-bands 90s ease-in-out infinite alternate-reverse; }
+.planet-bands-accent { transform-origin: 410px 260px; animation: planet-highlight 98s ease-in-out infinite alternate; }
+@keyframes planet-highlight { from { transform: translate(-.75px,0) rotate(-.1deg); } to { transform: translate(.75px,.5px) rotate(.1deg); } }
+@keyframes planet-bands { from { transform: translate(-2px,0) rotate(-.25deg); } to { transform: translate(3px,1px) rotate(.25deg); } }
+html.ambient-paused .web-planet g { animation-play-state: paused; }
+.animations-off .web-planet g { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .web-planet g { animation: none !important; } }
+/* Workspace shares the artwork, with invocation-free decorative motion only. */
+body:has(.workspace-planet)::after { content: none; }
+.workspace-planet { position: fixed; z-index: 0; pointer-events: none; width: 860px; height: auto; right: -100px; bottom: -170px; opacity: .07; animation: planet-drift 90s ease-in-out infinite alternate; }
+.dashboard-page { position: relative; z-index: 1; }
+.workspace-planet .planet-bands-slow { animation-duration: 88s; }
+.workspace-planet .planet-bands-soft { animation-duration: 96s; }
+.workspace-planet .planet-bands-accent { animation-duration: 100s; }
+html.ambient-paused .workspace-planet, html.ambient-paused .workspace-planet g { animation-play-state: paused; }
+.animations-off .workspace-planet, .animations-off .workspace-planet g { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .workspace-planet, .workspace-planet g { animation: none !important; } }
+@media (max-width: 760px) { .workspace-planet { width: 560px; right: -230px; bottom: -110px; opacity: .035; } }
+
+/* Compact editor chrome: a clear label, quiet context, and unboxed actions. */
+.dashboard-page .editor-panel { grid-template-rows: 48px minmax(0,1fr); border-radius: 12px; border-color: #ffffff16; box-shadow: 0 12px 32px #0003; }
+.dashboard-page .editor-panel::before { content: none; }
+.dashboard-page .editor-panel > .board-topbar { height: 48px; padding: 0 12px 0 16px; background: #0b0d10; border-bottom: 1px solid #ffffff0d; gap: 12px; }
+.dashboard-page .board-topbar > .board-identity { align-items: center; gap: 10px; flex: 1; }
+.board-accent { width: 3px; height: 18px; border-radius: 2px; background: #819bb9; flex: 0 0 auto; opacity: .7; }
+.board-label { display: grid; gap: 4px; min-width: 0; }
+.board-label > span:first-child { color: #d2d8e0; font: 600 10px/1 var(--font-mono); letter-spacing: .12em; }
+.board-label .board-context { color: #87919e; font: 400 10px/1 var(--font-ui); letter-spacing: 0; white-space: nowrap; }
+.dashboard-page .board-topbar small { margin-left: auto; color: #87919e; font-size: 9px; letter-spacing: .04em; }
+.dashboard-page .editor-actions { gap: 4px; flex: 0 0 auto; }
+.dashboard-page .editor-actions .icon-button { width: 34px; height: 34px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #9ca6b3; }
+.dashboard-page .editor-actions .icon-button svg { width: 16px; height: 16px; }
+.dashboard-page .editor-actions .icon-button:hover:not(:disabled) { background: #ffffff07; border-color: #ffffff12; color: #e2e7ee; transform: none; }
+.dashboard-page .editor-actions .icon-button:focus-visible { outline: 2px solid #91abc8; outline-offset: 1px; }
+.dashboard-page .editor-panel:focus-within { border-color: #819bb965; box-shadow: 0 12px 32px #0003, inset 0 0 0 1px #819bb908; }
+@media (max-width: 380px) {
+    .dashboard-page .editor-panel > .board-topbar { padding-inline: 10px; gap: 8px; }
+    .dashboard-page .board-topbar > .board-identity { gap: 7px; }
+    .dashboard-page .board-topbar small { font-size: 8px; }
+}
+@media (max-width: 380px) { html { min-width: 0; } }
