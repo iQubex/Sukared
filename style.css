@@ -1041,7 +1041,7 @@ html.ambient-paused .web-planet g { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .web-planet g { animation: none !important; } }
 /* Workspace shares the artwork, with invocation-free decorative motion only. */
 body:has(.workspace-planet)::after { content: none; }
-.workspace-planet { position: fixed; z-index: 0; pointer-events: none; width: 860px; height: auto; right: -100px; bottom: -170px; opacity: .07; animation: planet-drift 90s ease-in-out infinite alternate; }
+.workspace-planet { position: fixed; z-index: 0; pointer-events: none; width: 860px; height: auto; right: -180px; bottom: calc(100% - 490px); opacity: .12; animation: planet-drift 90s ease-in-out infinite alternate; }
 .dashboard-page { position: relative; z-index: 1; }
 .workspace-planet .planet-bands-slow { animation-duration: 88s; }
 .workspace-planet .planet-bands-soft { animation-duration: 96s; }
@@ -1049,7 +1049,7 @@ body:has(.workspace-planet)::after { content: none; }
 html.ambient-paused .workspace-planet, html.ambient-paused .workspace-planet g { animation-play-state: paused; }
 .animations-off .workspace-planet, .animations-off .workspace-planet g { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .workspace-planet, .workspace-planet g { animation: none !important; } }
-@media (max-width: 760px) { .workspace-planet { width: 560px; right: -230px; bottom: -110px; opacity: .035; } }
+@media (max-width: 760px) { .workspace-planet { width: 560px; right: -210px; bottom: -40px; opacity: .055; } }
 
 /* Compact editor chrome: a clear label, quiet context, and unboxed actions. */
 .dashboard-page .editor-panel { grid-template-rows: 48px minmax(0,1fr); border-radius: 12px; border-color: #ffffff16; box-shadow: 0 12px 32px #0003; }
