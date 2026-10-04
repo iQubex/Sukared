@@ -1,4 +1,4 @@
-# Luavex 2.0 public crawl readiness
+# Luavex 2.1 public crawl readiness
 
 Local frontend preparation only. Nothing was deployed, and backend/auth/API behavior was not changed.
 
@@ -15,13 +15,13 @@ The app continues to use hash routing. Hashes are not separate server resources 
 
 ## Metadata and social previews
 
-Landing title: **Luavex 2.0 — Lua & Luau Obfuscator**
+Landing title: **Luavex 2.1 — Lua & Luau Obfuscator**
 
-Description: **Protect your Lua and Luau scripts with Luavex 2.0. Create protected builds in the browser and explore the latest release notes.**
+Description: **Protect your Lua and Luau scripts with Luavex 2.1. Create protected builds in the browser and explore the latest release notes.**
 
 English language, black theme color, self-canonicals, complete OG and Twitter summary cards are present. The existing blue icon is the preview image (1254 × 1254 PNG); it is a square brand preview, not a new wide marketing image. Favicon references and the existing Google verification token are retained. No manifest existed and none was added.
 
-Landing JSON-LD uses WebSite and SoftwareApplication (softwareVersion 2.0). Release history uses WebPage. No ratings, prices, reviews, customer counts or unsupported organization claims were added.
+Landing JSON-LD uses WebSite and SoftwareApplication (softwareVersion 2.1). Release history uses WebPage. No ratings, prices, reviews, customer counts or unsupported organization claims were added.
 
 ## Performance and hygiene observations
 

@@ -2,7 +2,18 @@
     'use strict';
     window.SukaRedChangelog = Object.freeze([
         Object.freeze({
-            version: 'Luavex 2.0 — VM Architecture Redesign', status: 'Current',
+            version: 'Luavex 2.1 — Runtime Execution Diversity', status: 'Current',
+            groups: Object.freeze({
+                Improved: Object.freeze([
+                    'More build-specific variation in protected execution and data handling.',
+                    'Broader runtime layout diversity with less structural repetition across builds.',
+                    'Continued runtime compatibility and stability improvements.'
+                ]),
+                Fixed: Object.freeze(['Corrected a continuation-state issue affecting valid scripts.'])
+            })
+        }),
+        Object.freeze({
+            version: 'Luavex 2.0 — VM Architecture Redesign', status: 'Previous',
             groups: Object.freeze({
                 Improved: Object.freeze([
                     'Redesigned protected runtime with layered loading and execution.',
