@@ -41,7 +41,7 @@ assert(dashboardSource.includes("outlet.addEventListener('keydown', shortcutList
 assert(dashboardSource.includes("outlet.removeEventListener('keydown', shortcutListener)"));
 assert(dashboardSource.includes('setTimeout(() => finish(null), 3500)'), 'Monaco fallback timeout is missing');
 
-for (const copy of ['window.LuavexRelease.name', 'Current release', 'VM Architecture Redesign', 'Previous release', 'Open workspace']) {
+for (const copy of ['window.LuavexRelease.name', 'Current release', 'Runtime Execution Diversity', 'Previous release', 'Open workspace']) {
     assert(landingSource.includes(copy), 'missing public landing copy: ' + copy);
 }
 assert(!landingSource.includes('setTimeout'), 'public product content must not wait for a boot/typewriter timer');
@@ -53,9 +53,9 @@ assert(starfieldSource.includes('window.__luavexStarfield'));
 assert(css.includes('.boot-page { background: rgba(0,0,0,.12); }'));
 assert(css.includes('.build-controls { position: static; width: 100%'));
 assert(!css.includes('.build-controls { position: sticky;'));
-assert(html.includes('/style.css?v=luavex-web-2.0'));
-assert(html.includes('/app/landing.js?v=luavex-web-2.0'));
-assert(html.includes('/app/dashboard.js?v=luavex-2.0'));
+assert(html.includes('/style.css?v=luavex-web-2.1'));
+assert(html.includes('/app/landing.js?v=luavex-web-2.1'));
+assert(html.includes('/app/dashboard.js?v=luavex-2.1'));
 
 console.log(JSON.stringify({
     metadata: 'PASS',
