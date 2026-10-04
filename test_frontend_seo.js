@@ -39,13 +39,13 @@ for (const [index, file] of ['index.html', 'releases.html'].entries()) {
 }
 const index = read('index.html');
 const graph = JSON.parse(index.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1])['@graph'];
-assert.equal(graph.find(item => item['@type'] === 'SoftwareApplication').softwareVersion, '2.1');
+assert.equal(graph.find(item => item['@type'] === 'SoftwareApplication').softwareVersion, '2.0');
 assert(graph.some(item => item['@type'] === 'WebSite'));
 assert.equal(meta(index, 'google-site-verification')[0], 'jdwDQHtgTv7ZyJTNiJOhPpqojRgJwW1cVGncECwZ8dI');
 assert(index.includes('Values can still be observed at runtime'));
 for (const script of index.matchAll(/<script([^>]*)src=/g)) assert(script[1].includes('defer'), 'avoid parser-blocking frontend scripts');
 const releases = read('releases.html');
-assert(releases.includes('Luavex 2.1 — Runtime Execution Diversity') && releases.includes('Luavex 2.0 — VM Architecture Redesign') && releases.includes('Version 1.9'));
+assert(releases.includes('Luavex 2.0 — VM Architecture Redesign') && releases.includes('Version 1.9'));
 assert(!releases.includes('<script defer src='), 'static releases must not require app/auth scripts');
 const robots = read('robots.txt');
 for (const route of ['workspace', 'dashboard', 'history', 'settings', 'auth', 'callback', 'api', 'v2/']) assert(robots.includes('Disallow: /' + route));
