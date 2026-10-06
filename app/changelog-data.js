@@ -1,8 +1,9 @@
 (function () {
     'use strict';
     window.SukaRedChangelog = Object.freeze([
+        Object.freeze({version:'Luavex 2.2 — Runtime Integrity & Authorization',status:'Current',groups:Object.freeze({Improved:Object.freeze(["Strengthened server-authorized runtime execution.","Improved invocation and context isolation.","Expanded runtime integrity validation and per-build execution diversity.","Reduced recovered material lifetime through bounded lazy recovery.","Added capability-aware compatibility profiles.","Improved replay and malformed-context resistance.","Runtime consistency, size and performance maintenance."])})}),
         Object.freeze({
-            version: 'Luavex 2.1 — Runtime Execution Diversity', status: 'Current',
+            version: 'Luavex 2.1 — Runtime Execution Diversity', status: 'Previous',
             groups: Object.freeze({
                 Improved: Object.freeze([
                     'More build-specific variation in protected execution and data handling.',
