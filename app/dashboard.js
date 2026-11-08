@@ -95,7 +95,7 @@
                     <input id="fileInput" type="file" accept=".lua,.luau,text/plain" hidden><div class="editor-stack"><div class="editor-host" id="inputEditor"></div><textarea class="editor-fallback" id="inputFallback" spellcheck="false" aria-label="Input code"></textarea></div>
                 </section>
                 <section class="editor-panel" id="outputPanel" aria-labelledby="outputLabel">
-                    <header class="board-topbar"><div class="board-identity"><span class="board-accent" aria-hidden="true"></span><div class="board-label"><span id="outputLabel">OUTPUT</span><span class="board-context">Protected build</span></div><small id="outputState"></small></div><div class="editor-actions"><button class="button" id="saveToStorage" type="button" hidden>Save</button><button class="icon-button" id="copyOutput" type="button" aria-label="Copy output" title="Copy output"></button><button class="icon-button" id="downloadOutput" type="button" aria-label="Download output" title="Download output"></button></div></header>
+                    <header class="board-topbar"><div class="board-identity"><span class="board-accent" aria-hidden="true"></span><div class="board-label"><span id="outputLabel">OUTPUT</span><span class="board-context">Protected build</span></div><small id="outputState"></small></div><div class="editor-actions"><button class="button" id="saveToStorage" type="button" hidden>Retry save</button><button class="icon-button" id="copyOutput" type="button" aria-label="Copy output" title="Copy output"></button><button class="icon-button" id="downloadOutput" type="button" aria-label="Download output" title="Download output"></button></div></header>
                     <div class="editor-stack"><div class="editor-host" id="outputEditor"></div><textarea class="editor-fallback" id="outputFallback" spellcheck="false" readonly aria-label="Output code"></textarea><div class="editor-empty-state" id="outputEmptyState" aria-hidden="true"><span class="output-empty-mark">↳</span><strong>No output yet</strong><span>Run a build to see your protected script here.</span></div><span class="sr-only" id="outputAssist" role="status" aria-live="polite">Output is empty.</span></div>
                 </section>
             </div>
@@ -197,7 +197,7 @@
         const updateInputMetadata = () => { const input = getInput(); fileTab.textContent = state.sourceName || 'Untitled.luau'; fileTab.title = fileTab.textContent; fileState.textContent = inputMetadata(input); fileState.title = state.sourceName ? `${state.sourceName}${state.modified ? ' / Modified' : ''}` : 'Editor buffer';
         };
         const saveButton = outlet.querySelector('#saveToStorage');
-        const updateOutputActions = () => { const output = getOutput(); const available = Boolean(output); saveButton.hidden = !available || !window.LuavexAuth.state.storageAvailable; copyButton.disabled = !available; downloadButton.disabled = !available; outlet.querySelector('#outputState').textContent = outputMetadata(output); outlet.querySelector('#outputEmptyState').hidden = available; outlet.querySelector('#outputAssist').textContent = available ? 'Protected output is available.' : 'Output is empty.'; };
+        const updateOutputActions = () => { const output = getOutput(); const available = Boolean(output); saveButton.hidden = !state.pendingSave; copyButton.disabled = !available; downloadButton.disabled = !available; outlet.querySelector('#outputState').textContent = outputMetadata(output); outlet.querySelector('#outputEmptyState').hidden = available; outlet.querySelector('#outputAssist').textContent = available ? 'Protected output is available.' : 'Output is empty.'; };
         const setStatus = (label, modifier = '') => { status.textContent = ({ READY: 'Ready', RUNNING: 'Building', COMPLETE: 'Completed', FAILED: 'Failed' })[label] || label; status.className = `workspace-status${modifier ? ` ${modifier}` : ''}`; };
         const idleStatus = auth => { const configurationFailed = Boolean(window.LuavexAPI.configurationError); const quota = quotaView(auth); setStatus(configurationFailed || hostedMode === 'unavailable' ? 'UNAVAILABLE' : !auth.authenticated ? 'SIGN IN' : quota.exhausted || full() ? 'LIMIT' : hostedMode === 'checking' ? 'CHECKING' : 'READY', configurationFailed || quota.exhausted || full() ? 'is-error' : auth.authenticated ? '' : 'is-auth-required'); };
         const fallbackInputListener = () => { state.input = inputFallback.value; updateInputMetadata(); };
@@ -207,12 +207,12 @@
         const quotaState = outlet.querySelector('#quotaState');
         const full = () => slots && slots.used >= slots.limit;
         const applyAuth = auth => {
-            saveButton.hidden = !auth.storageAvailable || !getOutput();
+            saveButton.hidden = !state.pendingSave;
             const quota = quotaView(auth);
             const blocked = !auth.authenticated || quota.exhausted || full() || ['checking', 'unavailable'].includes(hostedMode) || Boolean(window.LuavexAPI.configurationError);
             updateDeveloperPanel();
             if (!processing) obfuscate.disabled = blocked;
-            hostedSource.hidden = !auth.authenticated || hostedMode !== 'hosted';
+            hostedSource.hidden = !auth.authenticated || (hostedMode !== 'hosted' && !auth.automaticStorage);
             hostedSlots.hidden = !auth.authenticated || hostedMode === 'standard';
             slotState.textContent = slots ? `Free Protection Slots: ${slots.used} / ${slots.limit}` :
                 hostedMode === 'checking' ? 'Checking protection slots…' : 'Protection slots unavailable.';
@@ -260,41 +260,76 @@
             const file = event.target.files[0]; if (!file) return;
             state.sourceName = file.name.replace(/^.*[\\/]/, '').slice(0, 180); state.sourceOrigin = 'file'; state.modified = false; suppressChange = true; setInput((await file.text()).replace(/^\uFEFF/, '')); suppressChange = false; updateInputMetadata();
         });
-        outlet.querySelector('#clearBtn').addEventListener('click', () => { setInput(''); setOutput(''); state.sourceName = null; state.outputName = null; state.sourceOrigin = 'editor'; state.modified = false; state.build = null; state.builtSource = null; terminalStatus = false; updateInputMetadata(); updateOutputActions(); buildSummary(outlet.querySelector('#buildSummary'), null); errorPanel.hidden = true; idleStatus(window.LuavexAuth.state); });
-        saveButton.addEventListener('click', () => {
-            if (!window.LuavexAuth.state.storageAvailable || !getOutput()) return;
-            window.SukaRedViews.saveScript({ name: state.outputName || state.sourceName || '', source: state.builtSource, output: getOutput() });
+        outlet.querySelector('#clearBtn').addEventListener('click', () => { setInput(''); setOutput(''); state.sourceName = null; state.outputName = null; state.sourceOrigin = 'editor'; state.modified = false; state.build = null; state.builtSource = null; state.pendingSave = null; state.pendingBuild = null; terminalStatus = false; updateInputMetadata(); updateOutputActions(); buildSummary(outlet.querySelector('#buildSummary'), null); errorPanel.hidden = true; idleStatus(window.LuavexAuth.state); });
+
+        saveButton.addEventListener('click', async () => {
+            if (!state.pendingSave || !window.LuavexAuth.state.storageAvailable || saveButton.disabled) return;
+            saveButton.disabled = true;
+            try {
+                await window.LuavexAPI.request('/scripts/retry-build', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(state.pendingSave)
+                });
+                state.pendingSave = null;
+                errorPanel.hidden = true;
+                setStatus('Saved', 'is-completed');
+                updateOutputActions();
+                window.SukaRedUI.toast('Script saved', 'success');
+            } catch (error) {
+                errorPanel.hidden = false; errorPanel.querySelector('pre').textContent = error.message;
+            } finally { saveButton.disabled = false; }
         });
         copyButton.addEventListener('click', async () => { if (!getOutput()) return; try { await navigator.clipboard.writeText(getOutput()); window.SukaRedUI.toast('Output copied', 'success'); } catch { window.SukaRedUI.toast('Clipboard unavailable. Select and copy the output.', 'error'); } });
         downloadButton.addEventListener('click', () => { if (!getOutput()) return; const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([getOutput()], { type: 'text/plain;charset=utf-8' })); link.download = `${safeFilename(state.outputName || state.sourceName)}.luavex.lua`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 0); });
 
+        let naming = false;
         const runBuild = async () => {
             if (!window.LuavexAuth.state.authenticated) { window.LuavexAuth.login(); return; }
             if (window.SukaRedDashboard.helpers.quotaView(window.LuavexAuth.state).exhausted) { applyAuth(window.LuavexAuth.state); return; }
             if (full() || ['checking', 'unavailable'].includes(hostedMode)) return;
             const code = getInput(); if (!code.trim()) { window.SukaRedUI.toast('Input is empty.', 'warning'); return; } if (processing) return;
             const hosted = hostedMode === 'hosted';
+            const automatic = window.LuavexAuth.state.automaticStorage === true;
+            if (naming) return;
+            if (state.pendingSave) { window.SukaRedUI.toast('Retry saving the current output first.', 'warning'); return; }
+            if (automatic && scriptNameError(state.scriptName)) {
+                naming = true;
+                window.SukaRedViews.nameScript(name => { naming = false; state.scriptName = name; scriptName.value = name; void runBuild(); }, () => { naming = false; });
+                return;
+            }
             if (hosted && !validateName()) { scriptName.focus(); return; }
             const currentSettings = window.SukaRedSettings.load();
             processing = true; const started = performance.now();
-            const id = crypto.randomUUID ? crypto.randomUUID() : `LOCAL-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
             terminalStatus = false; setStatus('RUNNING', 'is-processing'); obfuscate.setAttribute('aria-busy', 'true'); obfuscate.disabled = true; obfuscate.classList.add('is-processing'); errorPanel.hidden = true;
             if (getOutput()) outlet.querySelector('#outputState').textContent = 'Previous output';
             try {
                 const payload = candidate ? { code, bindings: developerPanel && !developerPanel.hidden ? JSON.parse(resourceBindings.value) : {}, build_id: id } : { code, features: currentSettings.protectionFeatures, resourceProtection: true };
-                if (hosted) payload.scriptName = scriptName.value.trim();
-                const response = await fetch(apiUrl(), { method: 'POST', credentials: 'include', signal: controller.signal, headers: { 'Content-Type': 'application/json', 'x-idempotency-key': id }, body: JSON.stringify(payload) });
+                if (hosted || automatic) payload.scriptName = scriptName.value.trim();
+                const body = JSON.stringify(payload);
+                const id = state.pendingBuild?.body === body ? state.pendingBuild.id : crypto.randomUUID();
+                state.pendingBuild = { id, body };
+                const response = await fetch(apiUrl(), { method: 'POST', credentials: 'include', signal: controller.signal, headers: { 'Content-Type': 'application/json', 'x-idempotency-key': id }, body });
                 const data = await response.json().catch(() => ({}));
                 if (response.status === 413) { const error = new Error('This script is too large to process.'); error.code = 'SOURCE_TOO_LARGE'; throw error; }
                 if (!response.ok) { const error = new Error(data.message || 'Build failed.'); error.code = response.status === 401 ? 'AUTH_REQUIRED' : data.code || 'BUILD_FAILED'; error.build = data.build; error.details = data.details; error.usage = data.usage; throw error; }
                 if (disposed) return;
                 if (typeof data.obfuscated !== 'string' || !data.obfuscated) throw new Error('No build output received.');
                 if (hosted && !data.script?.id) throw new Error('No protected script record received.');
-                state.outputName = hosted ? payload.scriptName : null;
+                state.pendingBuild = null;
+                state.pendingSave = data.storage?.status === 'failed' ? { ...data.storage, source: code, output: data.obfuscated } : null;
+                state.outputName = hosted || automatic ? payload.scriptName : null;
                 state.builtSource = code;
                 delete viewStates.output; setOutput(data.obfuscated); showPanel('output'); updateOutputActions(); state.build = { ...data.build, outputBytes: bytes(data.obfuscated), processingTimeMs: data.build?.processingTimeMs ?? Math.round(performance.now() - started) }; buildSummary(outlet.querySelector('#buildSummary'), state.build);
                 if (data.usage) window.LuavexAuth.applyUsage(data.usage);
-                terminalStatus = true; setStatus('COMPLETE', 'is-completed'); window.SukaRedUI.toast('Build completed', 'success');
+                terminalStatus = true;
+                if (state.pendingSave) {
+                    setStatus('Save failed', 'is-error');
+                    errorPanel.hidden = false; errorPanel.querySelector('pre').textContent = data.storage.message;
+                } else {
+                    setStatus(data.storage?.status === 'saved' ? 'Saved' : 'COMPLETE', 'is-completed');
+                    window.SukaRedUI.toast(data.storage?.status === 'saved' ? 'Script saved' : 'Build completed', 'success');
+                }
             } catch (error) {
                 if (disposed) return;
                 const codeValue = error.code || (error.name === 'AbortError' ? 'CANCELLED' : 'NETWORK_ERROR');
@@ -316,5 +351,5 @@
         return () => { state.input = getInput(); state.output = getOutput(); disposed = true; controller.abort(); document.fonts?.removeEventListener('loadingdone', refreshFontMetrics); unsubscribeAuth(); inputFallback.removeEventListener('input', fallbackInputListener); outlet.removeEventListener('keydown', shortcutListener); window.removeEventListener('focus', refreshSlots); window.removeEventListener('sukared:settings', settingsListener); window.removeEventListener('resize', layoutEditors); dprQuery?.removeEventListener?.('change', refreshFontMetrics); resizeObserver?.disconnect(); inputEditor?.dispose(); outputEditor?.dispose(); };
     };
 
-    window.SukaRedDashboard = { mount, apiUrl, openStored(script) { state.input = script.source; state.output = script.output; state.sourceName = script.name; state.scriptName = script.name; state.outputName = script.name; state.builtSource = script.source; state.build = null; }, helpers: Object.freeze({ formatBytes, lineCount, inputMetadata, outputMetadata, canUseBuildShortcut, quotaView, scriptNameError, bytes }) };
+    window.SukaRedDashboard = { mount, apiUrl, loadMonaco, openStored(script) { state.input = script.source; state.output = script.output; state.sourceName = script.name; state.scriptName = script.name; state.outputName = script.name; state.builtSource = script.source; state.build = null; }, helpers: Object.freeze({ formatBytes, lineCount, inputMetadata, outputMetadata, canUseBuildShortcut, quotaView, scriptNameError, bytes }) };
 })();

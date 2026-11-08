@@ -17,7 +17,7 @@
         route('/workspace', 'Workspace', () => window.SukaRedDashboard.mount(outlet, store)),
         route('/dashboard', 'Workspace', () => { history.replaceState({}, '', '/#/workspace'); return window.SukaRedDashboard.mount(outlet, store); }),
         route('/history/:id', 'Build Details', withSession(({ params, ...context }) => views.historyDetail({ ...context, id: params.id }))),
-        route('/history', 'Build History', withSession(views.history)),
+        route('/history', 'My Scripts', withSession(views.storage)),
         route('/storage/:id', 'Script Details', withSession(views.scriptDetails)),
         route('/storage', 'My Storage', withSession(views.storage)),
         route('/account', 'Account', withSession(views.account)),
@@ -70,18 +70,14 @@
             window.SukaRedUI.el('strong', '', auth.account.displayName || auth.account.username),
             window.SukaRedUI.el('small', '', `@${auth.account.username}`)
         );
-        const historyLink = window.SukaRedUI.el('a', 'account-action', 'Build History');
+        const historyLink = window.SukaRedUI.el('a', 'account-action', 'My Scripts');
         historyLink.href = '/#/history'; historyLink.dataset.route = '';
         const logout = window.SukaRedUI.el('button', 'account-action', 'Log out'); logout.type = 'button';
         logout.addEventListener('click', () => window.LuavexAuth.logout().catch(() => window.SukaRedUI.toast('Logout failed.', 'error')));
         const accountLink = window.SukaRedUI.el('a', 'account-action', 'Account');
         accountLink.href = '/#/account'; accountLink.dataset.route = '';
         panel.append(accountLink, historyLink);
-        if (auth.storageAvailable) {
-            const storageLink = window.SukaRedUI.el('a', 'account-action', 'My Storage');
-            storageLink.href = '/#/storage'; storageLink.dataset.route = '';
-            panel.append(storageLink);
-        }
+
         panel.append(logout); menu.append(trigger, panel); accountSlot.append(menu);
         const close = () => { panel.hidden = true; trigger.setAttribute('aria-expanded', 'false'); };
         trigger.addEventListener('click', () => {

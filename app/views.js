@@ -308,14 +308,25 @@
         });
         dialog.showModal(); field.select();
     };
-    const saveScript = ({ name, source, output }) => nameDialog({
-        title: 'Save script', name, source,
-        submit: (name, include) => storageRequest('', 'POST', { name, output, ...(include ? { source } : {}) }),
-        done: ({ script }) => {
-            toast('Script saved', 'success');
-            window.sukaredApp.router.navigate('/storage/' + encodeURIComponent(script.id));
-        }
-    });
+    const nameScript = (done, closed) => {
+        const dialog = el('dialog', 'storage-dialog');
+        const form = el('form', 'storage-form');
+        const label = el('label', '', 'Script name');
+        const field = el('input', 'text-control'); field.required = true; field.autocomplete = 'off'; label.append(field);
+        const feedback = el('p', 'storage-feedback'); feedback.setAttribute('role', 'alert');
+        const submit = el('button', 'button button-primary', 'Obfuscate'); submit.type = 'submit';
+        const controls = el('div', 'card-actions'); controls.append(action('Cancel', () => dialog.close()), submit);
+        form.append(el('h2', '', 'Name your script'), label, feedback, controls);
+        dialog.append(form); document.body.append(dialog);
+        dialog.addEventListener('close', () => { dialog.remove(); closed(); }, { once: true });
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            const error = window.SukaRedDashboard.helpers.scriptNameError(field.value);
+            if (error) { feedback.textContent = error; return; }
+            dialog.close(); done(field.value.trim());
+        });
+        dialog.showModal(); field.focus();
+    };
     const storagePage = (outlet, title) => {
         const page = el('section', 'content-page page-section storage-page');
         page.append(heading('Account', title, ''));
@@ -338,6 +349,13 @@
         const list = el('div', 'history-list');
         page.append(usage, tools, list);
         let scripts = [];
+        const refresh = async () => {
+            const result = await storageRequest('');
+            if (page.parentNode !== outlet) return;
+            scripts = result.scripts;
+            usage.textContent = formatBytes(result.usage.used) + ' used of ' + formatBytes(result.usage.limit);
+            draw();
+        };
         const draw = () => {
             const search = filter.value.trim().toLowerCase();
             const visible = scripts.filter(row => row.name.toLowerCase().includes(search));
@@ -348,24 +366,36 @@
                 const card = el('article', 'history-card');
                 const buttons = el('div', 'card-actions');
                 const url = '/storage/' + encodeURIComponent(row.id);
-                buttons.append(routeLink('Open', url), action('Rename', () => nameDialog({
+                buttons.append(routeLink('Open', url));
+                if (row.source_bytes) buttons.append(routeLink('View Source', url + '?file=source'));
+                buttons.append(routeLink('View Output', url + '?file=output'), action('Download', async () => {
+                    try {
+                        const { script } = await storageRequest('/' + encodeURIComponent(row.id));
+                        downloadText(script.name + '.luavex.lua', script.output);
+                    } catch (error) { toast(error.message, 'error'); }
+                }), action('Rename', () => nameDialog({
                     title: 'Rename script', name: row.name,
                     submit: name => storageRequest('/' + encodeURIComponent(row.id), 'PATCH', { name }),
-                    done: ({ script }) => { Object.assign(row, script); draw(); }
-                })));
-                card.append(el('h2', '', row.name), el('p', '', formatBytes(row.source_bytes + row.output_bytes)), buttons);
+                    done: () => void refresh().catch(error => toast(error.message, 'error'))
+                })), action('Delete', async () => {
+                    if (!await confirm('Delete this script?', 'Its saved files will be removed. Shared loaders remain active.')) return;
+                    try { await storageRequest('/' + encodeURIComponent(row.id), 'DELETE'); await refresh(); }
+                    catch (error) { toast(error.message, 'error'); }
+                }));
+                card.append(el('h2', '', row.name),
+                    el('p', 'script-library-meta', [
+                        row.created ? 'Created ' + formatDate(row.created) : null, 'Updated ' + formatDate(row.updated),
+                        row.source_bytes ? 'Source + protected output' : 'Protected output', 'Saved', formatBytes(row.source_bytes + row.output_bytes)
+                    ].filter(Boolean).join(' · ')), buttons);
                 list.append(card);
             }
         };
         try {
-            const result = await storageRequest('');
-            if (page.parentNode !== outlet) return;
-            scripts = result.scripts;
-            usage.textContent = formatBytes(result.usage.used) + ' used of ' + formatBytes(result.usage.limit);
-            filter.addEventListener('input', draw); sort.addEventListener('change', draw); draw();
+            filter.addEventListener('input', draw); sort.addEventListener('change', draw);
+            await refresh();
         } catch (error) { usage.textContent = error.message || 'Could not load scripts.'; }
     };
-    const scriptDetails = async ({ outlet, params }) => {
+    const scriptDetails = async ({ outlet, params, query }) => {
         const page = storagePage(outlet, 'Script Details');
         if (!page) return;
         const key = '/' + encodeURIComponent(params.id);
@@ -386,43 +416,40 @@
                 window.sukaredApp.router.navigate('/workspace');
             }));
             controls.append(action('Delete', async () => {
-                if (!await confirm('Delete this script?', 'This removes its saved files.')) return;
+                if (!await confirm('Delete this script?', 'This removes its saved files. Shared loaders remain active.')) return;
                 try { await storageRequest(key, 'DELETE'); window.sukaredApp.router.navigate('/storage'); }
                 catch (error) { feedback.textContent = error.message; }
             }));
-            const form = el('form', 'storage-form');
-            const editors = {};
-            for (const [key, label] of [['source','Source'],['output','Protected output']]) {
-                const section = el('section', 'history-card');
-                const fieldLabel = el('label', '', label);
-                const editor = el('textarea', 'text-control storage-editor');
-                editor.value = script[key] || '';
-                editor.spellcheck = false;
-                fieldLabel.append(editor); editors[key] = editor;
-                const download = action('Download ' + label.toLowerCase(), () => {
-                    if (script[key] != null) downloadText(script.name + (key === 'source' ? '.luau' : '.luavex.lua'), script[key]);
-                });
-                download.disabled = script[key] === null;
-                editors[key + 'Download'] = download;
-                section.append(fieldLabel, download); form.append(section);
-            }
-            const save = el('button', 'button button-primary', 'Save changes'); save.type = 'submit';
-            form.append(save);
-            form.addEventListener('submit', async event => {
-                event.preventDefault();
-                if (save.disabled) return;
-                const source = editors.source.value || null, output = editors.output.value;
-                const changes = { ...(source !== script.source ? { source } : {}), ...(output !== script.output ? { output } : {}) };
-                if (!Object.keys(changes).length) return;
-                save.disabled = true;
-                try {
-                    await storageRequest(key, 'PATCH', changes);
-                    Object.assign(script, changes); editors.sourceDownload.disabled = script.source === null;
-                    feedback.textContent = 'Changes saved.';
-                } catch (error) { feedback.textContent = error.message; }
-                finally { save.disabled = false; }
-            });
-            page.append(title, controls, form);
+            const fileTabs = el('div', 'card-actions');
+            const viewer = el('div', 'script-viewer');
+            const fallback = el('pre', 'script-fallback');
+            const host = el('div', 'script-monaco'); host.hidden = true;
+            viewer.append(host, fallback);
+            let kind = script.source !== null && query?.get('file') !== 'output' ? 'source' : 'output';
+            let editor;
+            const select = file => {
+                kind = file;
+                sourceTab.setAttribute('aria-pressed', String(kind === 'source'));
+                outputTab.setAttribute('aria-pressed', String(kind === 'output'));
+                fallback.textContent = script[kind];
+                editor?.setValue(script[kind]);
+            };
+            const sourceTab = action('Source', () => select('source')); sourceTab.disabled = script.source === null;
+            const outputTab = action('Protected output', () => select('output'));
+            const fileExtension = () => kind === 'source' ? '.luau' : '.luavex.lua';
+            fileTabs.append(sourceTab, outputTab, action('Copy', async () => {
+                try { await navigator.clipboard.writeText(script[kind]); toast('Copied', 'success'); }
+                catch { feedback.textContent = 'Clipboard unavailable.'; }
+            }), action('Download', () => downloadText(script.name + fileExtension(), script[kind])));
+            select(kind);
+            page.append(title, controls, fileTabs, viewer);
+            const monaco = await window.SukaRedDashboard.loadMonaco();
+            if (page.parentNode !== outlet || !monaco) return;
+            host.hidden = false;
+            editor = monaco.editor.create(host, { value: script[kind], language: 'lua', theme: 'vs-dark', readOnly: true,
+                automaticLayout: true, minimap: { enabled: false }, scrollBeyondLastLine: false });
+            fallback.hidden = true;
+            return () => { editor.getModel()?.dispose(); editor.dispose(); };
         } catch (error) { feedback.textContent = error.message || 'Could not load script.'; }
     };
     const account = ({ outlet }) => {
@@ -441,5 +468,5 @@
         setPage(outlet, page);
     };
 
-    window.SukaRedViews = { storage, scriptDetails, saveScript, account, history, historyDetail, pricing, credits, changelog, settings, notFound };
+    window.SukaRedViews = { storage, scriptDetails, nameScript, account, history, historyDetail, pricing, credits, changelog, settings, notFound };
 })();

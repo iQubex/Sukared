@@ -14,7 +14,7 @@
         authenticated: local,
         account: local ? localAccount : null,
         usage: null,
-        storageAvailable: false,
+        storageAvailable: false, automaticStorage: false,
         localDevelopment: local
     };
     const listeners = new Set();
@@ -32,6 +32,7 @@
                 account: data.account || (local ? localAccount : null),
                 usage: data.usage || null,
                 storageAvailable: data.storageAvailable === true,
+                automaticStorage: data.automaticStorage === true,
                 localDevelopment: local || data.localDevelopment === true
             });
         } catch (_) {

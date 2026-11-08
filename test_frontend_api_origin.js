@@ -10,7 +10,7 @@ async function check(config){
  const window={LuavexAuth:{state:{authenticated:true}},SukaRedSettings:{load:()=>({protectionFeatures:{runtimeIntegrity:true}})}};
  const context=vm.createContext({window,location:{hostname:new URL(siteOrigin).hostname,origin:siteOrigin},URL,Blob,AbortController,performance,crypto:require('node:crypto').webcrypto,clearTimeout,
  fetch:async(url,options)=>{requests.push({url,options});return {ok:true,json:async()=>({})}},
- getInput:()=>context.input,getOutput:()=>null,processing:false,disposed:true,candidate:false,hostedMode:'legacy',full:()=>false,status:{},errorPanel:{},controller:new AbortController(),applyAuth:()=>{},setStatus:()=>{},scheduleIdleStatus:()=>{},terminalStatus:false,statusResetTimer:null,
+ state:{},naming:false,getInput:()=>context.input,getOutput:()=>null,processing:false,disposed:true,candidate:false,hostedMode:'legacy',full:()=>false,status:{},errorPanel:{},controller:new AbortController(),applyAuth:()=>{},setStatus:()=>{},scheduleIdleStatus:()=>{},terminalStatus:false,statusResetTimer:null,
  obfuscate:{addEventListener:(_,fn)=>{click=fn},setAttribute(){},removeAttribute(){},classList:{add(){},remove(){}}}});
  if(config)vm.runInContext(config,context);
  vm.runInContext(api,context);await window.LuavexAPI.ready;

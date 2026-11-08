@@ -1323,3 +1323,8 @@ html.ambient-paused .web-landing .web-hero-copy,html.ambient-paused .web-landing
 .storage-form label:not(.storage-check) { display:grid; gap:6px; }
 .storage-editor { min-height:180px; resize:vertical; font-family:var(--font-mono); }
 .storage-feedback { color:#b4d0ff; overflow-wrap:anywhere; }
+.script-library-meta{color:var(--lvx-muted);font-size:12px}
+.script-viewer{height:clamp(320px,55dvh,650px);border:1px solid var(--lvx-line);background:#101218;border-radius:8px;overflow:hidden}
+.script-monaco,.script-fallback{height:100%;margin:0}
+.script-fallback{overflow:auto;padding:12px;font-family:var(--font-mono)}
+.storage-page button[aria-pressed="true"]{border-color:var(--lvx-blue);color:var(--lvx-blue-text)}
