@@ -3,7 +3,7 @@
 
     const state = {
         input: '-- Paste your Luau script here\nprint("Hello Luavex")', output: '', sourceName: null,
-        sourceOrigin: 'editor', modified: false, build: null, monacoReady: null, scriptName: '', outputName: null
+        sourceOrigin: 'editor', modified: false, build: null, monacoReady: null, scriptId: null, scriptName: '', outputName: null
     };
     const apiUrl = () => `${window.LuavexAPI.base}${window.LuavexAPI.paths.obfuscate}`;
     const bytes = value => new Blob([String(value || '')]).size;
@@ -87,11 +87,6 @@
             <div class="editor-workspace" id="editorWorkspace" data-panel="source">
                 <section class="editor-panel" id="sourcePanel" aria-labelledby="inputLabel">
                     <header class="board-topbar"><div class="board-identity"><span class="board-accent" aria-hidden="true"></span><div class="board-label"><span id="inputLabel">SOURCE</span><span class="board-context">Lua / Luau</span></div><small class="file-state" id="fileState">1 LINE</small></div><div class="editor-actions"><button class="icon-button" id="clearBtn" type="button" aria-label="Clear input" title="Clear input"></button></div></header>
-                    <div class="hosted-source" id="hostedSource" hidden>
-                        <label for="scriptName">Script Name <span aria-hidden="true">*</span></label>
-                        <input class="text-control" id="scriptName" type="text" required aria-describedby="scriptNameError" autocomplete="off">
-                        <small id="scriptNameError" role="status" hidden></small>
-                    </div>
                     <input id="fileInput" type="file" accept=".lua,.luau,text/plain" hidden><div class="editor-stack"><div class="editor-host" id="inputEditor"></div><textarea class="editor-fallback" id="inputFallback" spellcheck="false" aria-label="Input code"></textarea></div>
                 </section>
                 <section class="editor-panel" id="outputPanel" aria-labelledby="outputLabel">
@@ -109,19 +104,8 @@
         outlet.innerHTML = view();
         const candidate = window.LuavexAPI.resourceCandidate;
         let hostedMode = candidate ? 'standard' : 'checking', slots = null, revision = 0, account;
-        const scriptName = outlet.querySelector('#scriptName');
-        const nameError = outlet.querySelector('#scriptNameError');
-        const hostedSource = outlet.querySelector('#hostedSource');
         const hostedSlots = outlet.querySelector('#hostedSlots');
         const slotState = outlet.querySelector('#freeSlotState');
-        scriptName.value = state.scriptName;
-        const validateName = () => {
-            const message = scriptNameError(scriptName.value);
-            nameError.textContent = message; nameError.hidden = !message;
-            scriptName.setAttribute('aria-invalid', String(Boolean(message)));
-            return !message;
-        };
-        scriptName.addEventListener('input', () => { state.scriptName = scriptName.value; validateName(); });
         let resourceBindings; let developerPanel;
         if (candidate) {
             const panel = document.createElement('section'); panel.className = 'build-summary'; developerPanel = panel; panel.hidden = true;
@@ -212,7 +196,6 @@
             const blocked = !auth.authenticated || quota.exhausted || full() || ['checking', 'unavailable'].includes(hostedMode) || Boolean(window.LuavexAPI.configurationError);
             updateDeveloperPanel();
             if (!processing) obfuscate.disabled = blocked;
-            hostedSource.hidden = !auth.authenticated || (hostedMode !== 'hosted' && !auth.automaticStorage);
             hostedSlots.hidden = !auth.authenticated || hostedMode === 'standard';
             slotState.textContent = slots ? `Free Protection Slots: ${slots.used} / ${slots.limit}` :
                 hostedMode === 'checking' ? 'Checking protection slots…' : 'Protection slots unavailable.';
@@ -258,19 +241,21 @@
         outlet.querySelector('#openFileBtn').addEventListener('click', () => outlet.querySelector('#fileInput').click());
         outlet.querySelector('#fileInput').addEventListener('change', async event => {
             const file = event.target.files[0]; if (!file) return;
+            state.scriptId = null; state.scriptName = ''; state.pendingBuild = null;
             state.sourceName = file.name.replace(/^.*[\\/]/, '').slice(0, 180); state.sourceOrigin = 'file'; state.modified = false; suppressChange = true; setInput((await file.text()).replace(/^\uFEFF/, '')); suppressChange = false; updateInputMetadata();
         });
-        outlet.querySelector('#clearBtn').addEventListener('click', () => { setInput(''); setOutput(''); state.sourceName = null; state.outputName = null; state.sourceOrigin = 'editor'; state.modified = false; state.build = null; state.builtSource = null; state.pendingSave = null; state.pendingBuild = null; terminalStatus = false; updateInputMetadata(); updateOutputActions(); buildSummary(outlet.querySelector('#buildSummary'), null); errorPanel.hidden = true; idleStatus(window.LuavexAuth.state); });
+        outlet.querySelector('#clearBtn').addEventListener('click', () => { setInput(''); setOutput(''); state.scriptId = null; state.scriptName = ''; state.sourceName = null; state.outputName = null; state.sourceOrigin = 'editor'; state.modified = false; state.build = null; state.builtSource = null; state.pendingSave = null; state.pendingBuild = null; terminalStatus = false; updateInputMetadata(); updateOutputActions(); buildSummary(outlet.querySelector('#buildSummary'), null); errorPanel.hidden = true; idleStatus(window.LuavexAuth.state); });
 
         saveButton.addEventListener('click', async () => {
             if (!state.pendingSave || !window.LuavexAuth.state.storageAvailable || saveButton.disabled) return;
             saveButton.disabled = true;
             try {
-                await window.LuavexAPI.request('/scripts/retry-build', {
+                const { script } = await window.LuavexAPI.request('/scripts/retry-build', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(state.pendingSave)
                 });
                 state.pendingSave = null;
+                setStoredIdentity(script);
                 errorPanel.hidden = true;
                 setStatus('Saved', 'is-completed');
                 updateOutputActions();
@@ -282,7 +267,12 @@
         copyButton.addEventListener('click', async () => { if (!getOutput()) return; try { await navigator.clipboard.writeText(getOutput()); window.SukaRedUI.toast('Output copied', 'success'); } catch { window.SukaRedUI.toast('Clipboard unavailable. Select and copy the output.', 'error'); } });
         downloadButton.addEventListener('click', () => { if (!getOutput()) return; const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([getOutput()], { type: 'text/plain;charset=utf-8' })); link.download = `${safeFilename(state.outputName || state.sourceName)}.luavex.lua`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 0); });
 
-        let naming = false;
+        const setStoredIdentity = script => {
+            state.scriptId = script.id;
+            state.scriptName = state.sourceName = state.outputName = script.name;
+            updateInputMetadata();
+        };
+        let naming = null;
         const runBuild = async () => {
             if (!window.LuavexAuth.state.authenticated) { window.LuavexAuth.login(); return; }
             if (window.SukaRedDashboard.helpers.quotaView(window.LuavexAuth.state).exhausted) { applyAuth(window.LuavexAuth.state); return; }
@@ -292,20 +282,22 @@
             const automatic = window.LuavexAuth.state.automaticStorage === true;
             if (naming) return;
             if (state.pendingSave) { window.SukaRedUI.toast('Retry saving the current output first.', 'warning'); return; }
-            if (automatic && scriptNameError(state.scriptName)) {
-                naming = true;
-                window.SukaRedViews.nameScript(name => { naming = false; state.scriptName = name; scriptName.value = name; void runBuild(); }, () => { naming = false; });
+            if ((automatic || hosted) && !(automatic && state.scriptId) && scriptNameError(state.scriptName)) {
+                naming = window.SukaRedViews.nameScript(obfuscate, name => {
+                    naming = null;
+                    if (name && !disposed) { state.scriptName = name; void runBuild(); }
+                });
                 return;
             }
-            if (hosted && !validateName()) { scriptName.focus(); return; }
             const currentSettings = window.SukaRedSettings.load();
             processing = true; const started = performance.now();
 
             terminalStatus = false; setStatus('RUNNING', 'is-processing'); obfuscate.setAttribute('aria-busy', 'true'); obfuscate.disabled = true; obfuscate.classList.add('is-processing'); errorPanel.hidden = true;
             if (getOutput()) outlet.querySelector('#outputState').textContent = 'Previous output';
             try {
-                const payload = candidate ? { code, bindings: developerPanel && !developerPanel.hidden ? JSON.parse(resourceBindings.value) : {}, build_id: id } : { code, features: currentSettings.protectionFeatures, resourceProtection: true };
-                if (hosted || automatic) payload.scriptName = scriptName.value.trim();
+                const payload = candidate ? { code, bindings: developerPanel && !developerPanel.hidden ? JSON.parse(resourceBindings.value) : {}, build_id: crypto.randomUUID() } : { code, features: currentSettings.protectionFeatures, resourceProtection: true };
+                if (automatic && state.scriptId) payload.scriptId = state.scriptId;
+                else if (hosted || automatic) payload.scriptName = state.scriptName;
                 const body = JSON.stringify(payload);
                 const id = state.pendingBuild?.body === body ? state.pendingBuild.id : crypto.randomUUID();
                 state.pendingBuild = { id, body };
@@ -318,7 +310,8 @@
                 if (hosted && !data.script?.id) throw new Error('No protected script record received.');
                 state.pendingBuild = null;
                 state.pendingSave = data.storage?.status === 'failed' ? { ...data.storage, source: code, output: data.obfuscated } : null;
-                state.outputName = hosted || automatic ? payload.scriptName : null;
+                state.outputName = hosted || automatic ? state.scriptName : null;
+                if (automatic && data.storage?.status === 'saved') setStoredIdentity(data.script);
                 state.builtSource = code;
                 delete viewStates.output; setOutput(data.obfuscated); showPanel('output'); updateOutputActions(); state.build = { ...data.build, outputBytes: bytes(data.obfuscated), processingTimeMs: data.build?.processingTimeMs ?? Math.round(performance.now() - started) }; buildSummary(outlet.querySelector('#buildSummary'), state.build);
                 if (data.usage) window.LuavexAuth.applyUsage(data.usage);
@@ -348,8 +341,8 @@
 
         const settingsListener = event => { const value = event.detail; updateDeveloperPanel(); inputEditor?.updateOptions({ wordWrap: value.wordWrap ? 'on' : 'off', minimap: { enabled: value.minimap } }); outputEditor?.updateOptions({ wordWrap: value.wordWrap ? 'on' : 'off', minimap: { enabled: value.minimap } }); layoutEditors(); };
         window.addEventListener('sukared:settings', settingsListener);
-        return () => { state.input = getInput(); state.output = getOutput(); disposed = true; controller.abort(); document.fonts?.removeEventListener('loadingdone', refreshFontMetrics); unsubscribeAuth(); inputFallback.removeEventListener('input', fallbackInputListener); outlet.removeEventListener('keydown', shortcutListener); window.removeEventListener('focus', refreshSlots); window.removeEventListener('sukared:settings', settingsListener); window.removeEventListener('resize', layoutEditors); dprQuery?.removeEventListener?.('change', refreshFontMetrics); resizeObserver?.disconnect(); inputEditor?.dispose(); outputEditor?.dispose(); };
+        return () => { state.input = getInput(); state.output = getOutput(); disposed = true; naming?.(); controller.abort(); document.fonts?.removeEventListener('loadingdone', refreshFontMetrics); unsubscribeAuth(); inputFallback.removeEventListener('input', fallbackInputListener); outlet.removeEventListener('keydown', shortcutListener); window.removeEventListener('focus', refreshSlots); window.removeEventListener('sukared:settings', settingsListener); window.removeEventListener('resize', layoutEditors); dprQuery?.removeEventListener?.('change', refreshFontMetrics); resizeObserver?.disconnect(); inputEditor?.dispose(); outputEditor?.dispose(); };
     };
 
-    window.SukaRedDashboard = { mount, apiUrl, loadMonaco, openStored(script) { state.input = script.source; state.output = script.output; state.sourceName = script.name; state.scriptName = script.name; state.outputName = script.name; state.builtSource = script.source; state.build = null; }, helpers: Object.freeze({ formatBytes, lineCount, inputMetadata, outputMetadata, canUseBuildShortcut, quotaView, scriptNameError, bytes }) };
+    window.SukaRedDashboard = { mount, apiUrl, loadMonaco, openStored(script) { state.scriptId = script.id; state.pendingBuild = state.pendingSave = null; state.input = script.source; state.output = script.output; state.sourceName = script.name; state.scriptName = script.name; state.outputName = script.name; state.builtSource = script.source; state.build = null; }, helpers: Object.freeze({ formatBytes, lineCount, inputMetadata, outputMetadata, canUseBuildShortcut, quotaView, scriptNameError, bytes }) };
 })();

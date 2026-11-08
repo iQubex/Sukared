@@ -93,17 +93,20 @@ for (const file of ['app/api.js', 'app/dashboard.js', 'app/views.js'])
     await tick();
     const find = key => outlet.querySelector('#' + key);
     assert.equal(find('freeSlotState').textContent, 'Free Protection Slots: 0 / 6');
-    assert.equal(find('hostedSource').hidden, false);
+    assert.doesNotMatch(outlet.innerHTML, /id="scriptName"/);
+    let enterName;
+    window.SukaRedViews.nameScript = (_trigger, done) => { enterName = done; return () => {}; };
     find('inputFallback').value = 'é🌙';
     find('inputFallback').fire('input');
     assert.doesNotMatch(outlet.innerHTML, /sourceBytes|UTF-8 bytes/);
     await find('obfuscateBtn').fire('click');
-    assert(find('scriptName').focused);
+    assert.equal(typeof enterName, 'function');
     assert(!calls.some(r => r.method === 'POST'));
-    find('scriptName').value = ' ' + name + ' ';
+
     find('inputFallback').value = 'x'.repeat(2097153);
     buildFailure = 'SOURCE_TOO_LARGE';
-    await find('obfuscateBtn').fire('click');
+    enterName(name);
+    await tick();
     assert(calls.some(r => r.method === 'POST'));
     assert.equal(notices.at(-1), 'This script is too large to process.');
     buildFailure = undefined;

@@ -19,7 +19,7 @@
         route('/history/:id', 'Build Details', withSession(({ params, ...context }) => views.historyDetail({ ...context, id: params.id }))),
         route('/history', 'My Scripts', withSession(views.storage)),
         route('/storage/:id', 'Script Details', withSession(views.scriptDetails)),
-        route('/storage', 'My Storage', withSession(views.storage)),
+        route('/storage', 'My Scripts', withSession(views.storage)),
         route('/account', 'Account', withSession(views.account)),
         route('/changelog', 'Changelog', wrap(views.changelog)),
         route('/credits', 'Credits', wrap(views.credits)),

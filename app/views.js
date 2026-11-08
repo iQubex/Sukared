@@ -275,6 +275,7 @@
         return button;
     };
     const nameDialog = ({ title, name, source, submit, done }) => {
+        if (document.querySelector('dialog[open]')) return;
         const dialog = el('dialog', 'storage-dialog');
         const form = el('form', 'storage-form');
         const label = el('label', '', 'Script name');
@@ -308,24 +309,41 @@
         });
         dialog.showModal(); field.select();
     };
-    const nameScript = (done, closed) => {
+    const nameScript = (trigger, done) => {
+        if (document.querySelector('dialog[open]')) return null;
+        let name = null;
         const dialog = el('dialog', 'storage-dialog');
         const form = el('form', 'storage-form');
         const label = el('label', '', 'Script name');
-        const field = el('input', 'text-control'); field.required = true; field.autocomplete = 'off'; label.append(field);
+        const field = el('input', 'text-control'); field.required = true; field.autocomplete = 'off'; field.setAttribute('aria-describedby', 'scriptNameFeedback'); label.append(field);
         const feedback = el('p', 'storage-feedback'); feedback.setAttribute('role', 'alert');
         const submit = el('button', 'button button-primary', 'Obfuscate'); submit.type = 'submit';
         const controls = el('div', 'card-actions'); controls.append(action('Cancel', () => dialog.close()), submit);
-        form.append(el('h2', '', 'Name your script'), label, feedback, controls);
+        const title = el('h2', '', 'Name your script'); title.id = 'nameScriptTitle';
+        feedback.id = 'scriptNameFeedback';
+        form.noValidate = true;
+        dialog.setAttribute('aria-labelledby', title.id);
+        form.append(title, label, feedback, controls);
         dialog.append(form); document.body.append(dialog);
-        dialog.addEventListener('close', () => { dialog.remove(); closed(); }, { once: true });
+        dialog.addEventListener('close', () => {
+            dialog.remove();
+            if (trigger.isConnected) trigger.focus();
+            done(name);
+        }, { once: true });
+        dialog.addEventListener('keydown', event => {
+            if (event.key !== 'Tab') return;
+            if (event.shiftKey && document.activeElement === field) { event.preventDefault(); submit.focus(); }
+            else if (!event.shiftKey && document.activeElement === submit) { event.preventDefault(); field.focus(); }
+        });
+        field.addEventListener('input', () => { feedback.textContent = ''; field.removeAttribute('aria-invalid'); });
         form.addEventListener('submit', event => {
             event.preventDefault();
             const error = window.SukaRedDashboard.helpers.scriptNameError(field.value);
-            if (error) { feedback.textContent = error; return; }
-            dialog.close(); done(field.value.trim());
+            if (error) { feedback.textContent = error; field.setAttribute('aria-invalid', 'true'); field.focus(); return; }
+            name = field.value.trim(); dialog.close();
         });
         dialog.showModal(); field.focus();
+        return () => { if (dialog.open) dialog.close(); };
     };
     const storagePage = (outlet, title) => {
         const page = el('section', 'content-page page-section storage-page');
@@ -336,8 +354,51 @@
         else if (!auth.storageAvailable) page.append(el('p', '', 'Storage is not available.'));
         return auth.authenticated && auth.storageAvailable ? page : null;
     };
+    const metricValue = value => value == null ? 'Not available' : new Intl.NumberFormat().format(value);
+    const metrics = entries => {
+        const group = el('dl', 'library-metrics');
+        for (const [label, value] of entries) {
+            const item = el('div');
+            item.append(el('dt', '', label), el('dd', '', value));
+            group.append(item);
+        }
+        return group;
+    };
+    const moreActions = (...actions) => {
+        const menu = el('details', 'library-menu');
+        const trigger = el('summary', '', '···'); trigger.setAttribute('aria-label', 'More actions');
+        const choices = el('div', 'library-menu-items'); choices.append(...actions);
+        menu.append(trigger, choices);
+        menu.addEventListener('focusout', event => { if (!menu.contains(event.relatedTarget)) menu.open = false; });
+        menu.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && menu.open) { menu.open = false; trigger.focus(); }
+        });
+        return menu;
+    };
+    const openWorkspace = script => {
+        window.SukaRedDashboard.openStored(script);
+        window.sukaredApp.router.navigate('/workspace');
+    };
+    const historyChart = runs => {
+        const chart = el('section', 'library-chart');
+        chart.append(el('h2', '', 'Execution history'));
+        if (!runs) { chart.append(el('p', 'script-library-meta', 'Not available for this output.')); return chart; }
+        const bars = el('ul', 'library-bars');
+        const peak = Math.max(1, ...runs.series.map(day => day.runs));
+        for (const day of runs.series) {
+            const item = el('li');
+            const track = el('span', 'library-bar-track');
+            const bar = el('span', 'library-bar'); bar.style.height = 100 * day.runs / peak + '%';
+            track.setAttribute('aria-hidden', 'true'); track.append(bar);
+            item.append(el('strong', '', metricValue(day.runs)), track, el('span', '', day.date.slice(5)));
+            item.setAttribute('aria-label', day.date + ': ' + metricValue(day.runs) + ' hosted runs');
+            bars.append(item);
+        }
+        chart.append(bars, el('p', 'script-library-meta', 'UTC · Counts authorized hosted deliveries. Client completion is not measured.'));
+        return chart;
+    };
     const storage = async ({ outlet }) => {
-        const page = storagePage(outlet, 'My Storage');
+        const page = storagePage(outlet, 'My Scripts');
         if (!page) return;
         const filter = el('input', 'text-control'); filter.placeholder = 'Search scripts'; filter.setAttribute('aria-label', 'Search scripts');
         const sort = el('select', 'text-control'); sort.setAttribute('aria-label', 'Sort scripts');
@@ -345,15 +406,22 @@
             const option = el('option', '', label); option.value = value; sort.append(option);
         }
         const tools = el('div', 'history-controls'); tools.append(filter, sort);
-        const usage = el('p', '', 'Loading scripts…');
-        const list = el('div', 'history-list');
-        page.append(usage, tools, list);
+        const usage = el('div', 'library-overview', 'Loading scripts…');
+        const list = el('div', 'library-list');
+        const columns = el('div', 'library-row library-columns');
+        for (const label of ['Script','Total runs','Last 24 hours','Size','Status','Actions']) columns.append(el('span', '', label));
+        page.append(el('p', 'script-library-meta', 'Open and manage your saved Luau scripts.'), usage, tools, columns, list);
         let scripts = [];
         const refresh = async () => {
             const result = await storageRequest('');
             if (page.parentNode !== outlet) return;
             scripts = result.scripts;
-            usage.textContent = formatBytes(result.usage.used) + ' used of ' + formatBytes(result.usage.limit);
+            const measured = scripts.filter(script => script.executions);
+            const sum = key => measured.length ? measured.reduce((total, row) => total + row.executions[key], 0) : null;
+            usage.replaceChildren(metrics([
+                ['Total scripts', metricValue(scripts.length)], ['Total hosted runs', metricValue(sum('total'))],
+                ['Hosted runs today (UTC)', metricValue(sum('today'))], ['Storage used', formatBytes(result.usage.used)]
+            ]));
             draw();
         };
         const draw = () => {
@@ -363,14 +431,20 @@
             list.replaceChildren();
             if (!visible.length) list.append(el('p', 'empty-state', search ? 'No matching scripts.' : 'Save a build from Workspace to get started.'));
             for (const row of visible) {
-                const card = el('article', 'history-card');
-                const buttons = el('div', 'card-actions');
-                const url = '/storage/' + encodeURIComponent(row.id);
-                buttons.append(routeLink('Open', url));
-                if (row.source_bytes) buttons.append(routeLink('View Source', url + '?file=source'));
-                buttons.append(routeLink('View Output', url + '?file=output'), action('Download', async () => {
+                const card = el('article', 'library-row');
+                const buttons = el('div', 'library-row-actions');
+                const key = '/' + encodeURIComponent(row.id);
+                const url = '/storage' + key;
+                const getScript = async () => (await storageRequest(key)).script;
+                const more = [];
+                if (row.source_bytes) more.push(routeLink('View Source', url + '?file=source'));
+                more.push(routeLink('View Protected Output', url + '?file=output'));
+                if (row.source_bytes) more.push(action('Open in Workspace', async () => {
+                    try { openWorkspace(await getScript()); } catch (error) { toast(error.message, 'error'); }
+                }));
+                more.push(action('Download', async () => {
                     try {
-                        const { script } = await storageRequest('/' + encodeURIComponent(row.id));
+                        const script = await getScript();
                         downloadText(script.name + '.luavex.lua', script.output);
                     } catch (error) { toast(error.message, 'error'); }
                 }), action('Rename', () => nameDialog({
@@ -382,11 +456,23 @@
                     try { await storageRequest('/' + encodeURIComponent(row.id), 'DELETE'); await refresh(); }
                     catch (error) { toast(error.message, 'error'); }
                 }));
-                card.append(el('h2', '', row.name),
-                    el('p', 'script-library-meta', [
-                        row.created ? 'Created ' + formatDate(row.created) : null, 'Updated ' + formatDate(row.updated),
-                        row.source_bytes ? 'Source + protected output' : 'Protected output', 'Saved', formatBytes(row.source_bytes + row.output_bytes)
-                    ].filter(Boolean).join(' · ')), buttons);
+                const identity = el('div', 'library-identity');
+                const updated = el('p', 'script-library-meta', 'Updated ' + formatDate(row.updated));
+                if (row.created) updated.title = 'Created ' + formatDate(row.created);
+                identity.append(el('h2', '', row.name), updated);
+                buttons.append(routeLink('Open', url), moreActions(...more));
+                card.append(identity);
+                for (const [label, value] of [
+                    ['Total runs', metricValue(row.executions?.total)],
+                    ['Last 24 hours', metricValue(row.executions?.last24)],
+                    ['Size', formatBytes(row.source_bytes + row.output_bytes)],
+                    ['Status', 'Saved']
+                ]) {
+                    const cell = el('div', 'library-cell');
+                    cell.append(el('span', 'library-cell-label', label), el('span', '', value));
+                    card.append(cell);
+                }
+                card.append(buttons);
                 list.append(card);
             }
         };
@@ -400,27 +486,33 @@
         if (!page) return;
         const key = '/' + encodeURIComponent(params.id);
         const feedback = el('p', 'storage-feedback'); feedback.setAttribute('role', 'status');
-        page.append(routeLink('My Storage', '/storage'), feedback);
+        page.querySelector('header')?.remove();
+        const breadcrumb = el('nav', 'library-breadcrumb'); breadcrumb.setAttribute('aria-label', 'Breadcrumb');
+        const current = el('span', '', 'Script Details'); current.setAttribute('aria-current', 'page');
+        breadcrumb.append(routeLink('My Scripts', '/history'), ' / ', current);
+        page.append(breadcrumb, feedback);
         try {
             const { script } = await storageRequest(key);
             if (page.parentNode !== outlet) return;
-            const title = el('h2', '', script.name);
-            const controls = el('div', 'card-actions');
-            controls.append(action('Rename', () => nameDialog({
+            const title = el('h1', '', script.name);
+            const updatedDate = el('p', 'script-library-meta', 'Updated ' + formatDate(script.updated));
+            const controls = el('div', 'library-row-actions');
+            const rename = action('Rename', () => nameDialog({
                 title: 'Rename script', name: script.name,
                 submit: name => storageRequest(key, 'PATCH', { name }),
-                done: ({ script: updated }) => { script.name = updated.name; title.textContent = updated.name; }
-            })));
-            if (script.source !== null) controls.append(action('Open in Workspace', () => {
-                window.SukaRedDashboard.openStored(script);
-                window.sukaredApp.router.navigate('/workspace');
+                done: ({ script: updated }) => { script.name = updated.name; title.textContent = updated.name; updatedDate.textContent = 'Updated ' + formatDate(updated.updated); }
             }));
-            controls.append(action('Delete', async () => {
+            if (script.source !== null) controls.append(action('Open in Workspace', () => openWorkspace(script)));
+            const remove = action('Delete', async () => {
                 if (!await confirm('Delete this script?', 'This removes its saved files. Shared loaders remain active.')) return;
-                try { await storageRequest(key, 'DELETE'); window.sukaredApp.router.navigate('/storage'); }
+                try { await storageRequest(key, 'DELETE'); window.sukaredApp.router.navigate('/history'); }
                 catch (error) { feedback.textContent = error.message; }
-            }));
-            const fileTabs = el('div', 'card-actions');
+            });
+            controls.append(moreActions(rename, remove));
+            const details = el('div', 'library-details-head');
+            const identity = el('div'); identity.append(title, updatedDate);
+            details.append(identity, controls);
+            const fileTabs = el('div', 'library-editor-bar');
             const viewer = el('div', 'script-viewer');
             const fallback = el('pre', 'script-fallback');
             const host = el('div', 'script-monaco'); host.hidden = true;
@@ -437,12 +529,20 @@
             const sourceTab = action('Source', () => select('source')); sourceTab.disabled = script.source === null;
             const outputTab = action('Protected output', () => select('output'));
             const fileExtension = () => kind === 'source' ? '.luau' : '.luavex.lua';
-            fileTabs.append(sourceTab, outputTab, action('Copy', async () => {
+            const tabs = el('div', 'library-file-tabs'); tabs.append(sourceTab, outputTab);
+            const files = el('div', 'library-row-actions');
+            files.append(action('Copy', async () => {
                 try { await navigator.clipboard.writeText(script[kind]); toast('Copied', 'success'); }
                 catch { feedback.textContent = 'Clipboard unavailable.'; }
             }), action('Download', () => downloadText(script.name + fileExtension(), script[kind])));
             select(kind);
-            page.append(title, controls, fileTabs, viewer);
+            fileTabs.append(tabs, files);
+            const editorSection = el('section', 'library-editor'); editorSection.append(fileTabs, viewer);
+            const runs = script.executions;
+            page.append(details, metrics([
+                ['Total hosted runs', metricValue(runs?.total)], ['Last 24 hours', metricValue(runs?.last24)],
+                ['Last 7 days', metricValue(runs?.last7)]
+            ]), historyChart(runs), editorSection);
             const monaco = await window.SukaRedDashboard.loadMonaco();
             if (page.parentNode !== outlet || !monaco) return;
             host.hidden = false;
@@ -461,7 +561,7 @@
             const profile = el('div', 'history-card');
             profile.append(el('h2', '', auth.account.displayName || auth.account.username),
                 el('p', '', '@' + auth.account.username), el('p', '', auth.account.plan === 'premium' ? 'Premium plan' : 'Free plan'));
-            if (auth.storageAvailable) profile.append(routeLink('My Storage', '/storage'));
+            if (auth.storageAvailable) profile.append(routeLink('My Scripts', '/history'));
             profile.append(action('Log out', () => window.LuavexAuth.logout().catch(() => toast('Could not log out.', 'error'))));
             page.append(profile);
         }
