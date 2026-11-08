@@ -501,7 +501,7 @@
                 more.push(action('Download', async () => {
                     try {
                         const script = await getScript();
-                        downloadText(script.name + '.luavex.lua', script.output);
+                        downloadText(script.name.replace(/\.(?:lua|luau)$/i, '') + '.luavex.lua', script.output);
                     } catch (error) { toast(error.message, 'error'); }
                 }), action('Rename', () => nameDialog({
                     title: 'Rename script', name: row.name,
@@ -594,7 +594,7 @@
             files.append(action('Copy', async () => {
                 try { await navigator.clipboard.writeText(script[kind]); toast('Copied', 'success'); }
                 catch { feedback.textContent = 'Clipboard unavailable.'; }
-            }), action('Download', () => downloadText(script.name + fileExtension(), script[kind])));
+            }), action('Download', () => downloadText(script.name.replace(/\.(?:lua|luau)$/i, '') + fileExtension(), script[kind])));
             select(kind);
             fileTabs.append(tabs);
             const codeToolbar = el('div', 'v0-code-toolbar'); codeToolbar.append(el('span', '', '● Luau'), files);
