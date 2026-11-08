@@ -56,13 +56,21 @@
         const row = el('label', 'field-row'); row.append(el('span', '', label), customSelect(value, choices, onChange, label).element); return row;
     };
 
-    const toast = (message, type = 'info') => {
+    const toast = (message, type = 'info', detail = '') => {
         const region = document.getElementById('toastRegion');
-        const item = el('div', `toast toast-${type}`); item.setAttribute('role', type === 'error' ? 'alert' : 'status'); item.append(el('span', '', message));
+        const duplicate = Array.from(region.children).find(item => item.dataset.message === message && item.dataset.type === type);
+        if (duplicate) return () => duplicate.remove();
+        const item = el('div', `toast toast-${type}`); item.dataset.message = message; item.dataset.type = type;
+        item.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        const copy = el('span', 'toast-copy'); copy.append(el('strong', '', message));
+        if (detail) copy.append(el('small', '', detail));
+        item.append(window.SukaRedIcons.icon({success:'check',error:'close',warning:'activity',loading:'clock'}[type] || 'activity'), copy);
         const close = el('button', 'toast-close'); close.type = 'button'; close.setAttribute('aria-label', 'Dismiss notification'); close.append(window.SukaRedIcons.icon('close', { size: 14 })); close.addEventListener('click', () => item.remove());
         item.append(close); region.append(item);
         setTimeout(() => item.classList.add('is-visible'), 10);
-        setTimeout(() => { item.classList.remove('is-visible'); setTimeout(() => item.remove(), 180); }, 4200);
+        while (region.children.length > 4) region.firstElementChild.remove();
+        if (type !== 'loading') setTimeout(() => { item.classList.remove('is-visible'); setTimeout(() => item.remove(), 180); }, 4200);
+        return () => item.remove();
     };
 
     let activeModal = null;

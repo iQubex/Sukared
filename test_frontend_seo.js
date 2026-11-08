@@ -30,7 +30,7 @@ for (const [index, file] of ['index.html', 'releases.html'].entries()) {
     for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
         const link = entities(match[1]);
         if (link.startsWith('#web')) assert(html.includes(`id="${link.slice(1)}"`));
-        else if (link.startsWith('/#/')) assert(/^\/#\/(?:workspace|changelog|history)?$/.test(link));
+        else if (link.startsWith('/#/')) assert(/^\/#\/(?:workspace|changelog|history(?:\?view=activity)?)?$/.test(link));
         else if (link.startsWith('/')) {
             const filePath = link.split('?')[0];
             assert(fs.existsSync(path.join(__dirname, filePath === '/' ? 'index.html' : filePath.slice(1))), `${file}: broken ${link}`);

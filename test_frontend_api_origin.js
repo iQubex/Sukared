@@ -15,7 +15,7 @@ async function check(config){
  if(config)vm.runInContext(config,context);
  vm.runInContext(api,context);await window.LuavexAPI.ready;
  vm.runInContext(dashboard,context);context.apiUrl=window.SukaRedDashboard.apiUrl;
- const start=dashboard.indexOf('        const runBuild = async () => {'),end=dashboard.indexOf("        obfuscate.addEventListener('click', runBuild);",start);
+ const start=dashboard.indexOf('        const runBuild = async ('),end=dashboard.indexOf("        fileTab.addEventListener('click'",start);
  assert(start>=0&&end>start);vm.runInContext(dashboard.slice(start,end).replace('const runBuild =', 'runBuild ='),context);click=context.runBuild;
  for(const input of ['print("hello")','loadstring(game:HttpGet("https://raw.githubusercontent.com/example/project/main/test.lua"))()']){
   context.input=input;await click();

@@ -99,8 +99,10 @@
             shell.classList.toggle('is-landing', landing);
             document.body.classList.toggle('route-landing', landing);
             const section = match.path.split('/')[1] || '';
+            const activity = section === 'history' && new URLSearchParams(router.locationState().search).get('view') === 'activity';
+            shell.classList.toggle('v0-app', !landing);
             document.querySelectorAll('[data-nav]').forEach(link => {
-                const active = link.dataset.nav === section;
+                const active = activity ? link.dataset.nav === 'activity' : link.dataset.nav === section || (section === 'storage' && link.dataset.nav === 'history');
                 link.classList.toggle('is-active', active);
                 if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
             });
@@ -110,7 +112,10 @@
         },
         afterRender(match) {
             if (match.path !== '/') outlet.focus({ preventScroll: true });
-            scrollTo({ top: 0, behavior: 'auto' });
+            const chart = match.path === '/history' && new URLSearchParams(router.locationState().search).get('view') === 'activity'
+                ? outlet.querySelector('.library-dashboard-chart') : null;
+            if (chart) chart.scrollIntoView({ block: 'center' });
+            else scrollTo({ top: 0, behavior: 'auto' });
         }
     });
 

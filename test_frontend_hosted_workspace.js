@@ -11,6 +11,7 @@ class Element {
         this.classList = { add() {}, remove() {}, toggle() {} };
     }
     append(...children) { for (const child of children) { if (typeof child === 'string') { this.textContent += child; continue; } child.parentNode = this; this.children.push(child); } }
+    prepend(...children) { this.children.unshift(...children); }
     replaceChildren(...children) { for (const child of this.children) child.parentNode = null; this.children = []; this.textContent = ''; this.append(...children); }
     setAttribute() {}
     removeAttribute() {}

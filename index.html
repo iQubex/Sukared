@@ -31,7 +31,7 @@
     {"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://luavex.pntr.dev/#website","name":"Luavex","url":"https://luavex.pntr.dev/","inLanguage":"en"},{"@type":"SoftwareApplication","name":"Luavex","applicationCategory":"DeveloperApplication","operatingSystem":"Web","url":"https://luavex.pntr.dev/","description":"Protect your Lua and Luau scripts with Luavex 2.3. Create protected builds in the browser and explore the latest release notes.","softwareVersion":"2.3"}]}
     </script>
     <link rel="icon" type="image/png" href="/assets/luavex-icon-blue.png">
-    <link rel="stylesheet" href="/style.css?v=luavex-23-analytics-1">
+    <link rel="stylesheet" href="/style.css?v=luavex-23-v0">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body class="route-landing">
@@ -54,14 +54,15 @@
         </header>
 
         <aside class="side-dock" aria-label="Quick navigation">
+            <a class="v0-sidebar-brand" href="/#/" data-route aria-label="Luavex home"><img src="/assets/luavex-icon-blue.png" alt=""></a>
             <a href="/#/workspace" data-route data-nav="workspace" aria-label="Workspace" title="Workspace">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 9h16M9 9v10"/></svg>
             </a>
-            <a href="/#/changelog" data-route data-nav="changelog" aria-label="Changelog" title="Changelog">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h4"/></svg>
-            </a>
             <a href="/#/history" data-route data-nav="history" aria-label="My Scripts" title="My Scripts">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6M12 8v4l3 2"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h4m-8 3-2 2 2 2m4-4 2 2-2 2"/></svg>
+            </a>
+            <a href="/#/history?view=activity" data-route data-nav="activity" aria-label="Activity" title="Activity">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
             </a>
             <span class="dock-divider" aria-hidden="true"></span>
             <button id="dockSettings" type="button" aria-label="Open settings" title="Settings">
@@ -216,14 +217,14 @@ print(greet("Luavex"))</code></pre></div>
     <script defer src="/app/api.js?v=hosted-workspace"></script>
     <script defer src="/app/auth.js?v=luavex-23-library"></script>
     <script defer src="/app/history-store.js?v=luavex-ux-5"></script>
-    <script defer src="/app/icons.js?v=luavex-brand-1"></script>
+    <script defer src="/app/icons.js?v=luavex-23-v0"></script>
     <script defer src="/app/motion.js?v=luavex-brand-1"></script>
     <script defer src="/app/router.js?v=luavex-brand-1"></script>
-    <script defer src="/app/ui.js?v=luavex-ux-5"></script>
+    <script defer src="/app/ui.js?v=luavex-23-v0"></script>
     <script defer src="/app/landing.js?v=luavex-23-library"></script>
     <script defer src="/app/changelog-data.js?v=luavex-23-library"></script>
-    <script defer src="/app/dashboard.js?v=luavex-23-analytics"></script>
-    <script defer src="/app/views.js?v=luavex-23-analytics"></script>
-    <script defer src="/app/main.js?v=luavex-23-analytics"></script>
+    <script defer src="/app/dashboard.js?v=luavex-23-v0"></script>
+    <script defer src="/app/views.js?v=luavex-23-v0"></script>
+    <script defer src="/app/main.js?v=luavex-23-v0"></script>
 </body>
 </html>

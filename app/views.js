@@ -274,80 +274,99 @@
         button.addEventListener('click', run);
         return button;
     };
-    const nameDialog = ({ title, name, source, submit, done }) => {
-        if (document.querySelector('dialog[open]')) return;
-        const dialog = el('dialog', 'storage-dialog');
-        const form = el('form', 'storage-form');
-        const label = el('label', '', 'Script name');
-        const field = el('input', 'text-control');
-        field.value = name; field.required = true; field.autocomplete = 'off';
-        label.append(field);
-        const include = el('input'); include.type = 'checkbox';
-        if (source) {
-            const option = el('label', 'storage-check');
-            option.append(include, ' Save source');
-            form.append(option);
-        }
-        const feedback = el('p', 'storage-feedback'); feedback.setAttribute('role', 'alert');
-        const save = el('button', 'button button-primary', 'Save'); save.type = 'submit';
-        const cancel = action('Cancel', () => dialog.close());
-        const controls = el('div', 'card-actions'); controls.append(cancel, save);
-        form.prepend(el('h2', '', title), label);
-        form.append(feedback, controls); dialog.append(form);
-        document.body.append(dialog);
-        dialog.addEventListener('close', () => dialog.remove(), { once: true });
-        dialog.addEventListener('cancel', event => { if (save.disabled) event.preventDefault(); });
-        form.addEventListener('submit', async event => {
-            event.preventDefault();
-            if (save.disabled) return;
-            const error = window.SukaRedDashboard.helpers.scriptNameError(field.value);
-            if (error) { feedback.textContent = error; field.focus(); return; }
-            save.disabled = true; cancel.disabled = true;
-            try { const result = await submit(field.value.trim(), include.checked); dialog.close(); done(result); }
-            catch (error) { feedback.textContent = error.message || 'Could not save script.'; }
-            finally { save.disabled = false; cancel.disabled = false; }
-        });
-        dialog.showModal(); field.select();
-    };
-    const nameScript = (trigger, done) => {
+    const nameKey = name => name.trim().normalize('NFKC').toLowerCase();
+    const nameDialog = ({ title, name = '', submit, done, trigger = document.activeElement, build = false, checkDuplicates = false, existing = null }) => {
         if (document.querySelector('dialog[open]')) return null;
-        let name = null;
-        const dialog = el('dialog', 'storage-dialog');
+        const dialog = el('dialog', 'storage-dialog v0-name-modal');
         const form = el('form', 'storage-form');
         const label = el('label', '', 'Script name');
-        const field = el('input', 'text-control'); field.required = true; field.autocomplete = 'off'; field.setAttribute('aria-describedby', 'scriptNameFeedback'); label.append(field);
-        const feedback = el('p', 'storage-feedback'); feedback.setAttribute('role', 'alert');
-        const submit = el('button', 'button button-primary', 'Obfuscate'); submit.type = 'submit';
-        const controls = el('div', 'card-actions'); controls.append(action('Cancel', () => dialog.close()), submit);
-        const title = el('h2', '', 'Name your script'); title.id = 'nameScriptTitle';
-        feedback.id = 'scriptNameFeedback';
-        form.noValidate = true;
-        dialog.setAttribute('aria-labelledby', title.id);
-        form.append(title, label, feedback, controls);
-        dialog.append(form); document.body.append(dialog);
+        const field = el('input', 'text-control'); field.value = name; field.autocomplete = 'off'; field.placeholder = 'my-script.luau';
+        label.append(field);
+        const icon = el('span', 'v0-modal-icon'); icon.append(window.SukaRedIcons.icon(build ? 'sparkles' : 'pencil'));
+        const heading = el('h2', '', title); heading.id = 'storageDialogTitle'; dialog.setAttribute('aria-labelledby', heading.id);
+        const description = el('p', 'v0-modal-description', build ? 'Give this build a name. Use a .luau extension.' : 'Update the script name.');
+        const feedback = el('p', 'storage-feedback'); feedback.id = 'storageDialogError'; feedback.setAttribute('role', 'alert');
+        field.setAttribute('aria-describedby', feedback.id);
+        const conflictCard = el('div', 'v0-overwrite-card'); conflictCard.hidden = true;
+        const close = action('×', () => dialog.close()); close.className = 'v0-close-modal'; close.setAttribute('aria-label', 'Close');
+        const confirm = el('button', 'button button-primary', build ? 'Continue' : 'Save'); confirm.type = 'submit';
+        const overwrite = action('Overwrite existing', () => complete({ name: field.value.trim(), target: conflict }));
+        overwrite.className = 'button button-primary v0-overwrite'; overwrite.hidden = true;
+        const cancel = action('Cancel', () => dialog.close());
+        const controls = el('div', 'card-actions'); controls.append(cancel, confirm, overwrite);
+        form.append(icon, heading, description, label, feedback, conflictCard, controls);
+        dialog.append(close, form); document.body.append(dialog);
+        let conflict, result, busy = false;
+        const showConflict = record => {
+            conflict = record;
+            heading.textContent = 'Name already exists';
+            description.textContent = 'Choose another name or explicitly overwrite this script.';
+            conflictCard.replaceChildren(window.SukaRedIcons.icon('file'), el('strong', '', record.name));
+            if (record.updated) conflictCard.append(el('small', '', 'Updated ' + formatDate(record.updated)));
+            conflictCard.hidden = false; confirm.hidden = true; overwrite.hidden = false;
+        };
+        const complete = value => { result = value; dialog.close(); };
         dialog.addEventListener('close', () => {
             dialog.remove();
-            if (trigger.isConnected) trigger.focus();
-            done(name);
+            if (trigger?.isConnected) trigger.focus();
+            done?.(result);
         }, { once: true });
+        dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
+        dialog.addEventListener('click', event => { if (event.target === dialog && !busy) dialog.close(); });
         dialog.addEventListener('keydown', event => {
             if (event.key !== 'Tab') return;
-            if (event.shiftKey && document.activeElement === field) { event.preventDefault(); submit.focus(); }
-            else if (!event.shiftKey && document.activeElement === submit) { event.preventDefault(); field.focus(); }
+            const first = close, last = conflict ? overwrite : confirm;
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
         });
-        field.addEventListener('input', () => { feedback.textContent = ''; field.removeAttribute('aria-invalid'); });
-        form.addEventListener('submit', event => {
+        field.addEventListener('input', () => {
+            feedback.textContent = ''; field.removeAttribute('aria-invalid');
+            conflict = null; heading.textContent = title; description.textContent = build ? 'Give this build a name. Use a .luau extension.' : 'Update the script name.';
+            conflictCard.hidden = overwrite.hidden = true; confirm.hidden = false;
+        });
+        form.addEventListener('submit', async event => {
             event.preventDefault();
-            const error = window.SukaRedDashboard.helpers.scriptNameError(field.value);
+            if (busy || conflict) return;
+            const value = field.value.trim();
+            const error = window.SukaRedDashboard.helpers.scriptNameError(value) ||
+                (build && checkDuplicates && !/^[\w.-]+\.luau$/i.test(value) && nameKey(value) !== nameKey(existing?.name || '')
+                    ? 'Use letters, numbers, dots, dashes, and a .luau extension.' : '');
             if (error) { feedback.textContent = error; field.setAttribute('aria-invalid', 'true'); field.focus(); return; }
-            name = field.value.trim(); dialog.close();
+            busy = true; confirm.disabled = cancel.disabled = close.disabled = field.readOnly = true;
+            try {
+                if (!build) { complete(await submit(value)); return; }
+                if (checkDuplicates) {
+                    const { scripts } = await storageRequest('');
+                    if (!dialog.open) return;
+                    const matches = scripts.filter(script => nameKey(script.name) === nameKey(value));
+                    const selected = matches.find(script => script.id === existing?.id);
+                    if (selected || matches.length === 1) { showConflict(selected || matches[0]); return; }
+                    if (matches.length > 1) { feedback.textContent = 'Several scripts share this name. Open the intended script from My Scripts or choose another name.'; return; }
+                }
+                complete({ name: value });
+            } catch (error) { feedback.textContent = error.message || 'Could not verify the script name.'; }
+            finally { busy = false; confirm.disabled = cancel.disabled = close.disabled = field.readOnly = false; }
         });
-        dialog.showModal(); field.focus();
+        if (existing) showConflict(existing);
+        dialog.showModal(); field.select();
         return () => { if (dialog.open) dialog.close(); };
     };
+    const nameScript = (trigger, done, options = {}) => nameDialog({
+        title: 'Name your script', name: options.initial, trigger, done, build: true,
+        checkDuplicates: options.checkDuplicates, existing: options.existing
+    });
+    const renameScript = (trigger, name, submit, done) => nameDialog({ title: 'Rename script', trigger, name, submit, done });
     const storagePage = (outlet, title) => {
         const page = el('section', 'content-page page-section storage-page');
-        page.append(heading('Account', title, ''));
+        const head = heading('Account / Scripts', title, title === 'My Scripts' ? 'Manage your protected scripts.' : '');
+        if (title === 'My Scripts' && window.LuavexAuth.state.authenticated) {
+            const create = action('New script', () => {
+                window.SukaRedDashboard.newScript(); window.sukaredApp.router.navigate('/workspace');
+            });
+            create.classList.add('button-primary'); create.prepend(window.SukaRedIcons.icon('plus', {size:15}));
+            head.append(create);
+        }
+        page.append(head);
         setPage(outlet, page);
         const auth = window.LuavexAuth.state;
         if (!auth.authenticated) page.append(action('Connect Discord', window.LuavexAuth.login));
@@ -357,9 +376,11 @@
     const metricValue = value => value == null ? 'Not available' : new Intl.NumberFormat().format(value);
     const metrics = entries => {
         const group = el('dl', 'library-metrics');
-        for (const [label, value] of entries) {
+        for (const [label, value, icon, note] of entries) {
             const item = el('div');
+            if (icon) item.append(window.SukaRedIcons.icon(icon, {size:17}));
             item.append(el('dt', '', label), el('dd', '', value));
+            if (note) item.append(el('small', '', note));
             group.append(item);
         }
         return group;
@@ -379,23 +400,49 @@
         window.SukaRedDashboard.openStored(script);
         window.sukaredApp.router.navigate('/workspace');
     };
-    const historyChart = runs => {
-        const chart = el('section', 'library-chart');
-        chart.append(el('h2', '', 'Execution history'));
-        if (!runs) { chart.append(el('p', 'script-library-meta', 'Not available for this output.')); return chart; }
-        const bars = el('ul', 'library-bars');
-        const peak = Math.max(1, ...runs.series.map(day => day.runs));
-        for (const day of runs.series) {
-            const item = el('li');
-            const track = el('span', 'library-bar-track');
-            const bar = el('span', 'library-bar'); bar.style.height = 100 * day.runs / peak + '%';
-            track.setAttribute('aria-hidden', 'true'); track.append(bar);
-            item.append(el('strong', '', metricValue(day.runs)), track, el('span', '', day.date.slice(5)));
-            item.setAttribute('aria-label', day.date + ': ' + metricValue(day.runs) + ' hosted runs');
-            bars.append(item);
-        }
-        chart.append(bars, el('p', 'script-library-meta', 'UTC · Counts authorized hosted deliveries. Client completion is not measured.'));
-        return chart;
+    const dashboardChart = (series, compact = false) => {
+        const panel = el('section', compact ? 'library-chart v0-chart v0-chart-compact' : 'library-chart v0-chart');
+        const header = el('div', 'v0-chart-head');
+        const copy = el('div'); copy.append(el('h2', '', compact ? 'Execution history' : 'Hosted runs'), el('p', 'script-library-meta', 'Authorized deliveries · UTC'));
+        const period = el('select', 'text-control'); period.setAttribute('aria-label', 'Chart period');
+        for (const value of [7, 30]) { const option = el('option', '', value + ' days'); option.value = String(value); period.append(option); }
+        header.append(copy); if (!compact) header.append(period); panel.append(header);
+        const graph = el('div', 'v0-chart-body'); panel.append(graph);
+        const paint = () => {
+            graph.replaceChildren();
+            const days = series?.slice(-Number(period.value));
+            if (!days?.length) { graph.append(el('p', 'script-library-meta', 'No measured hosted runs are available yet.')); return; }
+            const peak = Math.max(4, ...days.map(day => day.runs));
+            const limit = Math.ceil(peak / 4) * 4;
+            const grid = el('div', 'v0-chart-grid'); grid.setAttribute('aria-hidden', 'true');
+            for (let value = limit; value >= 0; value -= limit/4) grid.append(el('span', '', String(value)));
+            const svg = (name, attrs) => {
+                const node = document.createElementNS('http://www.w3.org/2000/svg', name);
+                for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+                return node;
+            };
+            const width = 700, height = 190;
+            const points = days.map((day, i) => [i*width/Math.max(1,days.length-1), height - day.runs*height/limit]);
+            const plot = svg('svg', {viewBox:'0 0 700 190', preserveAspectRatio:'none', role:'img', 'aria-label':'Daily hosted runs'});
+            const gradient = svg('linearGradient', {id:'hosted-run-fill', x1:'0%', x2:'0%', y1:'0%', y2:'100%'});
+            gradient.append(svg('stop', {offset:'0%', 'stop-color':'#367dff','stop-opacity':'.22'}),
+                svg('stop', {offset:'100%', 'stop-color':'#367dff','stop-opacity':'0'}));
+            const defs = svg('defs', {}); defs.append(gradient);
+            const line = points.map(point => point.join(' ')).join(' L ');
+            plot.append(defs, svg('path', {d:`M 0 ${height} L ${line} L ${points.at(-1)[0]} ${height} Z`, fill:'url(#hosted-run-fill)'}),
+                svg('polyline', {points:points.map(point=>point.join(',')).join(' '), fill:'none', stroke:'#4d8cff', 'stroke-width':2.5,'vector-effect':'non-scaling-stroke'}));
+            const labels = el('div', 'v0-chart-dates');
+            for (const [i, day] of days.entries()) {
+                const [cx,cy] = points[i];
+                const dot = svg('circle', {cx,cy,r:days.length > 7 ? 2 : 4,fill:'#0b0d12',stroke:'#4d8cff','stroke-width':2});
+                const title = svg('title', {}); title.textContent = day.date + ': ' + day.runs + ' runs'; dot.append(title); plot.append(dot);
+                if (i === 0 || i === days.length-1 || (days.length > 7 ? i % 5 === 0 : true)) labels.append(el('span', '', day.date.slice(5)));
+            }
+            graph.append(grid, plot, labels);
+            if (days.length < Number(period.value)) graph.append(el('p', 'script-library-meta', 'History available for ' + days.length + ' days.'));
+        };
+        period.addEventListener('change', paint); paint();
+        return panel;
     };
     const storage = async ({ outlet }) => {
         const page = storagePage(outlet, 'My Scripts');
@@ -405,12 +452,17 @@
         for (const [value, label] of [['updated','Recently updated'],['name','Name']]) {
             const option = el('option', '', label); option.value = value; sort.append(option);
         }
-        const tools = el('div', 'history-controls'); tools.append(filter, sort);
+        const tools = el('div', 'history-controls');
+        const search = el('label', 'v0-search'); search.append(window.SukaRedIcons.icon('search', {size:14}), filter); tools.append(search, sort);
         const usage = el('div', 'library-overview', 'Loading scripts…');
         const list = el('div', 'library-list');
         const columns = el('div', 'library-row library-columns');
         for (const label of ['Script','Total runs','Last 24 hours','Size','Status','Actions']) columns.append(el('span', '', label));
-        page.append(el('p', 'script-library-meta', 'Open and manage your saved Luau scripts.'), usage, tools, columns, list);
+        const chart = el('div', 'library-dashboard-chart');
+        const collection = el('section', 'v0-scripts-section');
+        collection.append(el('h2', '', 'Scripts'), tools, columns, list);
+        usage.setAttribute('role','status'); usage.setAttribute('aria-busy','true');
+        page.append(usage, chart, collection);
         let scripts = [];
         const refresh = async () => {
             const result = await storageRequest('');
@@ -418,10 +470,14 @@
             scripts = result.scripts;
             const measured = scripts.filter(script => script.executions);
             const sum = key => measured.length ? measured.reduce((total, row) => total + row.executions[key], 0) : null;
+            usage.removeAttribute('aria-busy');
             usage.replaceChildren(metrics([
-                ['Total scripts', metricValue(scripts.length)], ['Total hosted runs', metricValue(sum('total'))],
-                ['Hosted runs today (UTC)', metricValue(sum('today'))], ['Storage used', formatBytes(result.usage.used)]
+                ['Total scripts', metricValue(scripts.length), 'file', 'Saved scripts'],
+                ['Total hosted runs', metricValue(sum('total')), 'activity', 'Authorized deliveries'],
+                ['Runs today', metricValue(sum('today')), 'clock', 'UTC'],
+                ['Storage used', formatBytes(result.usage.used), 'chart', 'Source and protected output']
             ]));
+            chart.replaceChildren(dashboardChart(result.runHistory));
             draw();
         };
         const draw = () => {
@@ -459,17 +515,18 @@
                 const identity = el('div', 'library-identity');
                 const updated = el('p', 'script-library-meta', 'Updated ' + formatDate(row.updated));
                 if (row.created) updated.title = 'Created ' + formatDate(row.created);
-                identity.append(el('h2', '', row.name), updated);
+                const mark = el('span', 'v0-file-icon'); mark.append(window.SukaRedIcons.icon('file', {size:15}));
+                const text = el('div'); text.append(el('h2', '', row.name), updated); identity.append(mark, text);
                 buttons.append(routeLink('Open', url), moreActions(...more));
                 card.append(identity);
                 for (const [label, value] of [
                     ['Total runs', metricValue(row.executions?.total)],
                     ['Last 24 hours', metricValue(row.executions?.last24)],
                     ['Size', formatBytes(row.source_bytes + row.output_bytes)],
-                    ['Status', 'Saved']
+                    ['Status', 'Protected']
                 ]) {
                     const cell = el('div', 'library-cell');
-                    cell.append(el('span', 'library-cell-label', label), el('span', '', value));
+                    cell.append(el('span', 'library-cell-label', label), el('span', label === 'Status' ? 'v0-protected' : '', value));
                     card.append(cell);
                 }
                 card.append(buttons);
@@ -479,7 +536,10 @@
         try {
             filter.addEventListener('input', draw); sort.addEventListener('change', draw);
             await refresh();
-        } catch (error) { usage.textContent = error.message || 'Could not load scripts.'; }
+        } catch (error) {
+            usage.removeAttribute('aria-busy'); usage.textContent = error.message || 'Could not load scripts.';
+            usage.append(action('Retry', () => { void refresh().catch(next => { usage.firstChild.textContent = next.message || 'Could not load scripts.'; }); }));
+        }
     };
     const scriptDetails = async ({ outlet, params, query }) => {
         const page = storagePage(outlet, 'Script Details');
@@ -489,7 +549,7 @@
         page.querySelector('header')?.remove();
         const breadcrumb = el('nav', 'library-breadcrumb'); breadcrumb.setAttribute('aria-label', 'Breadcrumb');
         const current = el('span', '', 'Script Details'); current.setAttribute('aria-current', 'page');
-        breadcrumb.append(routeLink('My Scripts', '/history'), ' / ', current);
+        breadcrumb.append(routeLink('← Back to My Scripts', '/history'), current);
         page.append(breadcrumb, feedback);
         try {
             const { script } = await storageRequest(key);
@@ -536,13 +596,14 @@
                 catch { feedback.textContent = 'Clipboard unavailable.'; }
             }), action('Download', () => downloadText(script.name + fileExtension(), script[kind])));
             select(kind);
-            fileTabs.append(tabs, files);
-            const editorSection = el('section', 'library-editor'); editorSection.append(fileTabs, viewer);
+            fileTabs.append(tabs);
+            const codeToolbar = el('div', 'v0-code-toolbar'); codeToolbar.append(el('span', '', '● Luau'), files);
+            const editorSection = el('section', 'library-editor'); editorSection.append(fileTabs, codeToolbar, viewer);
             const runs = script.executions;
             page.append(details, metrics([
                 ['Total hosted runs', metricValue(runs?.total)], ['Last 24 hours', metricValue(runs?.last24)],
                 ['Last 7 days', metricValue(runs?.last7)]
-            ]), historyChart(runs), editorSection);
+            ]), dashboardChart(runs?.series, true), editorSection);
             const monaco = await window.SukaRedDashboard.loadMonaco();
             if (page.parentNode !== outlet || !monaco) return;
             host.hidden = false;
@@ -568,5 +629,5 @@
         setPage(outlet, page);
     };
 
-    window.SukaRedViews = { storage, scriptDetails, nameScript, account, history, historyDetail, pricing, credits, changelog, settings, notFound };
+    window.SukaRedViews = { storage, scriptDetails, nameScript, renameScript, account, history, historyDetail, pricing, credits, changelog, settings, notFound };
 })();
