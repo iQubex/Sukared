@@ -1385,7 +1385,7 @@ html.ambient-paused .web-landing .web-hero-copy,html.ambient-paused .web-landing
     background:radial-gradient(ellipse at 78% 5%,rgba(54,125,255,.055),transparent 35%),var(--v0-bg); }
 .v0-app .site-header { height:67px; min-height:0; padding:0 30px; border-bottom:1px solid #171a20; display:flex; justify-content:flex-end; background:transparent; box-shadow:none; backdrop-filter:none; }
 .v0-app .site-header > .brand,.v0-app .site-nav,.v0-app #navToggle { display:none; }
-.v0-app .side-dock { position:fixed; inset:0 auto 0 0; width:72px; height:auto; transform:none; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:7px; padding:0; border:0; border-right:1px solid #1b1e25; border-radius:0; background:#080a0e; box-shadow:none; }
+.v0-app .side-dock { position:fixed; z-index:5; inset:0 auto 0 0; width:72px; height:auto; transform:none; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:7px; padding:0; border:0; border-right:1px solid #1b1e25; border-radius:0; background:#080a0e; box-shadow:none; }
 .v0-app .side-dock > .v0-sidebar-brand { height:67px; width:100%; margin:0 0 24px; border:0; background:none; }
 .v0-sidebar-brand img { width:28px; height:28px; object-fit:contain; }
 .v0-app .side-dock a:not(.v0-sidebar-brand),.v0-app .side-dock button { width:42px; height:42px; border:0; border-radius:9px; color:#697181; }
@@ -1477,7 +1477,7 @@ html.ambient-paused .web-landing .web-hero-copy,html.ambient-paused .web-landing
 .v0-close-modal { position:absolute; top:13px; right:15px; border:0; background:none; color:#9ba7ba; font-size:19px; cursor:pointer; }
 .v0-overwrite-card:not([hidden]) { display:flex; align-items:center; gap:7px; flex-wrap:wrap; border:1px solid #354052; padding:9px; border-radius:5px; color:#cbd3df; font-size:11px; }
 .v0-overwrite-card small { color:#9ba7ba; }
-.v0-app .toast-region { bottom:47px; }
+.route-v0-app .toast-region { bottom:47px; }
 @media(max-width:800px) {
     .v0-app .dashboard-page .editor-workspace,.v0-app .dashboard-page .editor-panel { min-height:360px; }
     .v0-app .dashboard-page .workspace-tabs { margin:0; padding:5px 12px; background:#0b0d12; border:1px solid var(--v0-line); border-top:0; }
@@ -1512,20 +1512,20 @@ html.ambient-paused .web-landing .web-hero-copy,html.ambient-paused .web-landing
 .v0-app .v0-chart-compact .v0-chart-body > svg,.v0-app .v0-chart-compact .v0-chart-grid { height:142px; }
 .v0-sidebar-brand { display:none; }
 .v0-app .side-dock > .v0-sidebar-brand { display:grid; }
-.v0-app .toast { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:11px 12px; background:#10141c; border-color:#2c3442; border-radius:7px; color:#d9e4f7; }
-.v0-app .toast-copy { display:grid; gap:4px; font-size:12px; }
-.v0-app .toast-copy small { color:#8d96a8; }
-.v0-app .toast-success > svg { color:#79c8a5; }
-.v0-app .toast-error > svg { color:#ef8b8b; }
-.v0-app .toast-loading > svg { color:#7faaff; }
+.route-v0-app .toast { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:11px 12px; background:#10141c; border-color:#2c3442; border-radius:7px; color:#d9e4f7; }
+.route-v0-app .toast-copy { display:grid; gap:4px; font-size:12px; }
+.route-v0-app .toast-copy small { color:#8d96a8; }
+.route-v0-app .toast-success > svg { color:#79c8a5; }
+.route-v0-app .toast-error > svg { color:#ef8b8b; }
+.route-v0-app .toast-loading > svg { color:#7faaff; }
 
 .v0-app .v0-editor-release { margin-left:auto; }
-.v0-app .toast .toast-copy { justify-self:start; }
+.route-v0-app .toast .toast-copy { justify-self:start; }
 @media(min-width:761px) and (max-width:800px) {
     .v0-app .dashboard-page .workspace-tabs { display:none; }
     .v0-app .dashboard-page .editor-workspace { grid-template-columns:repeat(2,minmax(0,1fr)); }
-    .v0-app .editor-workspace[data-panel] #outputPanel,.v0-app .editor-workspace[data-panel] #sourcePanel { display:flex; }
+    .v0-app .editor-workspace[data-panel] #outputPanel,.v0-app .editor-workspace[data-panel] #sourcePanel { display:grid; }
 }
 @media(max-width:760px) {
-    .v0-app .site-header { width:auto; grid-column:auto; }
+    .v0-app .site-header { width:auto; grid-column:auto; z-index:90; }
 }

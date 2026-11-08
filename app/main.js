@@ -101,6 +101,7 @@
             const section = match.path.split('/')[1] || '';
             const activity = section === 'history' && new URLSearchParams(router.locationState().search).get('view') === 'activity';
             shell.classList.toggle('v0-app', !landing);
+            document.body.classList.toggle('route-v0-app', !landing);
             document.querySelectorAll('[data-nav]').forEach(link => {
                 const active = activity ? link.dataset.nav === 'activity' : link.dataset.nav === section || (section === 'storage' && link.dataset.nav === 'history');
                 link.classList.toggle('is-active', active);
