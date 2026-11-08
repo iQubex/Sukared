@@ -390,6 +390,11 @@
         const trigger = el('summary', '', '···'); trigger.setAttribute('aria-label', 'More actions');
         const choices = el('div', 'library-menu-items'); choices.append(...actions);
         menu.append(trigger, choices);
+        menu.addEventListener('toggle', () => {
+            if (!menu.open) return;
+            const rect = trigger.getBoundingClientRect();
+            menu.classList.toggle('opens-up', innerHeight - rect.bottom < choices.offsetHeight + 8 && rect.top > choices.offsetHeight + 8);
+        });
         menu.addEventListener('focusout', event => { if (!menu.contains(event.relatedTarget)) menu.open = false; });
         menu.addEventListener('keydown', event => {
             if (event.key === 'Escape' && menu.open) { menu.open = false; trigger.focus(); }
@@ -460,7 +465,7 @@
         for (const label of ['Script','Total runs','Last 24 hours','Size','Status','Actions']) columns.append(el('span', '', label));
         const chart = el('div', 'library-dashboard-chart');
         const collection = el('section', 'v0-scripts-section');
-        collection.append(el('h2', '', 'Scripts'), tools, columns, list);
+        collection.append(el('span', 'eyebrow', 'Library'), el('h2', '', 'Your scripts'), tools, columns, list);
         usage.setAttribute('role','status'); usage.setAttribute('aria-busy','true');
         page.append(usage, chart, collection);
         let scripts = [];

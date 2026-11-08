@@ -9,6 +9,7 @@
         clock: ['circle:12,12,9','path:M12 7v5l3 2'],
         chart: ['path:M4 4v16h16M8 16v-4m4 4V8m4 8v-6'],
         pencil: ['path:m4 16 11-11 4 4L8 20H4z','path:m13 7 4 4'],
+        shield: ['path:M12 22s7-3.5 7-10V5l-7-3-7 3v7c0 6.5 7 10 7 10Z','path:m9 12 2 2 4-4'],
         sparkles: ['path:M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z'],
         plus: ['path:M5 12h14M12 5v14'],
         search: ['circle:10,10,5','path:m14 14 5 5'],
