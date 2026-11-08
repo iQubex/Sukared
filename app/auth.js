@@ -14,6 +14,7 @@
         authenticated: local,
         account: local ? localAccount : null,
         usage: null,
+        storageAvailable: false,
         localDevelopment: local
     };
     const listeners = new Set();
@@ -30,6 +31,7 @@
                 authenticated: local || data.authenticated === true,
                 account: data.account || (local ? localAccount : null),
                 usage: data.usage || null,
+                storageAvailable: data.storageAvailable === true,
                 localDevelopment: local || data.localDevelopment === true
             });
         } catch (_) {
@@ -55,7 +57,7 @@
             return;
         }
         await window.LuavexAPI.request('/auth/logout', { method: 'POST' });
-        Object.assign(state, { loaded: true, authenticated: false, account: null, usage: null, localDevelopment: false });
+        Object.assign(state, { loaded: true, authenticated: false, account: null, usage: null, storageAvailable: false, localDevelopment: false });
         emit();
         window.sukaredApp?.router?.navigate('/workspace');
     };

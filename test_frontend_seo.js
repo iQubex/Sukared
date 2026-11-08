@@ -39,7 +39,7 @@ for (const [index, file] of ['index.html', 'releases.html'].entries()) {
 }
 const index = read('index.html');
 const graph = JSON.parse(index.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1])['@graph'];
-assert.equal(graph.find(item => item['@type'] === 'SoftwareApplication').softwareVersion, '2.1');
+assert.equal(graph.find(item => item['@type'] === 'SoftwareApplication').softwareVersion, '2.3');
 assert(graph.some(item => item['@type'] === 'WebSite'));
 assert.equal(meta(index, 'google-site-verification')[0], 'jdwDQHtgTv7ZyJTNiJOhPpqojRgJwW1cVGncECwZ8dI');
 assert(index.includes('Values can still be observed at runtime'));

@@ -1,6 +1,14 @@
 (function () {
     'use strict';
-    window.SukaRedChangelog = Object.freeze([
+    const releases = [
+        Object.freeze({
+            version: 'Luavex 2.3 — The Next Chapter',
+            status: 'In development',
+            groups: Object.freeze({
+                New: Object.freeze(['Redesigned workspace and interface.', 'Personal script storage.', 'Save and manage protected scripts.', 'Open, rename and download saved scripts.', 'Account details saved across sessions.']),
+                Improved: Object.freeze(['Smoother editing and builds.', 'Cleaner navigation and mobile layout.', 'Easier script organization.'])
+            })
+        }),
         Object.freeze({version:'Luavex 2.2 — Runtime Integrity & Authorization',status:'Current',groups:Object.freeze({Improved:Object.freeze(["Strengthened server-authorized runtime execution.","Improved invocation and context isolation.","Expanded runtime integrity validation and per-build execution diversity.","Reduced recovered material lifetime through bounded lazy recovery.","Added capability-aware compatibility profiles.","Improved replay and malformed-context resistance.","Runtime consistency, size and performance maintenance."])})}),
         Object.freeze({
             version: 'Luavex 2.1 — Runtime Execution Diversity', status: 'Previous',
@@ -118,5 +126,10 @@
                 Fixed: Object.freeze(['Early compatibility and validation issues'])
             })
         })
-    ]);
+    ];
+    const published23 = window.LuavexRelease?.version === '2.3';
+    window.SukaRedChangelog = Object.freeze(releases.map((entry, index) => {
+        if (!published23 || index > 1) return entry;
+        return Object.freeze({ ...entry, status: index === 0 ? 'Current' : 'Previous' });
+    }));
 })();

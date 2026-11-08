@@ -61,8 +61,8 @@
         return 'Older';
     };
 
-    const history = async ({ outlet, store }) => {
-        const page = el('section', 'content-page page-section');
+    const legacyHistory = async ({ outlet, store }) => {
+        const page = el('section', 'content-page page-section luavex-history-page');
         page.append(heading('Account', 'Build History', 'Private metadata for builds completed by your Discord account.', 'Metadata Only'));
         if (!window.LuavexAuth.state.authenticated) {
             const empty = el('div', 'empty-state');
@@ -109,10 +109,94 @@
         await renderList();
     };
 
+    const history = ({ outlet, store }) => {
+        if (!window.LuavexAuth.state.authenticated) return legacyHistory({ outlet, store });
+        const page = el('section', 'content-page page-section luavex-history-page');
+        const title = heading('Account', 'Protected Scripts', 'Identify or delete your protected scripts.');
+        const slots = el('small', 'hosted-slots');
+        slots.setAttribute('role', 'status');
+        const list = el('div', 'history-list', 'Loading protected scripts…');
+        page.append(title, slots, list);
+        setPage(outlet, page);
+        const controller = new AbortController();
+        const owner = window.LuavexAuth.state.account?.id;
+        let revision = 0, hosted = false;
+        const pending = new Set();
+        const current = () => !controller.signal.aborted && page.parentNode === outlet && window.LuavexAuth.state.authenticated &&
+            window.LuavexAuth.state.account?.id === owner;
+        const problem = async error => {
+            if (error.status === 401 || error.code === 'AUTH_REQUIRED') {
+                await window.LuavexAuth.refresh();
+                if (!controller.signal.aborted && page.parentNode === outlet) {
+                    slots.textContent = '';
+                    list.replaceChildren(el('p', '', 'Your session expired. Connect Discord to view protected scripts.'));
+                    const connect = el('button', 'button button-primary', 'Connect Discord');
+                    connect.type = 'button'; connect.addEventListener('click', window.LuavexAuth.login); list.append(connect);
+                }
+            } else if (current()) toast(error.message || 'Protected scripts could not be updated.', 'error');
+        };
+        const refresh = async () => {
+            const request = ++revision;
+            try {
+                const result = await window.LuavexAPI.protectedScripts({ signal: controller.signal });
+                if (!current() || request !== revision) return;
+                if (!result && !hosted) { await legacyHistory({ outlet, store }); return; }
+                if (!result) throw new Error('Protected scripts are unavailable.');
+                hosted = true;
+                slots.textContent = `Free Protection Slots: ${result.freeSlots.used} / ${result.freeSlots.limit}`;
+                list.replaceChildren();
+                if (!result.scripts.length) list.append(el('p', 'empty-state', 'No protected scripts yet.'));
+                for (const record of result.scripts) {
+                    const card = el('article', 'history-card protected-script-row');
+                    const details = el('div');
+                    details.append(el('h3', '', record.name), el('span', 'history-date', formatDate(record.createdAt)));
+                    const remove = el('button', 'text-button', 'Delete');
+                    remove.type = 'button'; remove.disabled = pending.has(record.id);
+                    remove.setAttribute('aria-label', `Delete ${record.name}`);
+                    remove.addEventListener('click', async () => {
+                        if (!current() || pending.has(record.id)) return;
+                        if (!await confirm(`Delete “${record.name}”?`,
+                            'Deleting this protected script will disable future executions of its distributed output. Already-running scripts are not stopped.')) return;
+                        if (!current() || pending.has(record.id)) return;
+                        pending.add(record.id); remove.disabled = true;
+                        try {
+                            await window.LuavexAPI.request(`/protected-scripts/${encodeURIComponent(record.id)}`,
+                                { method: 'DELETE', signal: controller.signal });
+                            if (current()) { toast('Protected script deleted', 'success'); await refresh(); }
+                        } catch (error) {
+                            if (!current()) return;
+                            if (error.status === 404) await refresh();
+                            else await problem(error);
+                        } finally {
+                            pending.delete(record.id); remove.disabled = false;
+                        }
+                    });
+                    card.append(details, el('span', 'status-badge', record.tier), remove);
+                    list.append(card);
+                }
+            } catch (error) {
+                if (!current() || request !== revision) return;
+                if (error.status !== 401 && error.code !== 'AUTH_REQUIRED') {
+                    slots.textContent = '';
+                    list.replaceChildren(el('p', '', 'Protected scripts could not be loaded.'));
+                    const retry = el('button', 'button', 'Retry'); retry.type = 'button'; retry.addEventListener('click', refresh); list.append(retry);
+                }
+                await problem(error);
+            }
+        };
+        const unsubscribe = window.LuavexAuth.subscribe(auth => {
+            if (page.parentNode !== outlet || (auth.authenticated && auth.account?.id === owner)) return;
+            revision++; slots.textContent = '';
+            list.replaceChildren(el('p', '', 'Your account session changed. Reopen History to continue.'));
+        });
+        void refresh();
+        return () => { revision++; controller.abort(); unsubscribe(); };
+    };
+
     const historyDetail = async ({ outlet, store, id }) => {
         const record = await store.get(id);
         if (!record) return notFound({ outlet });
-        const page = el('section', 'content-page page-section detail-page');
+        const page = el('section', 'content-page page-section detail-page luavex-history-page');
         const back = el('a', 'back-link', '← Build History'); back.href = '/#/history'; back.dataset.route = '';
         page.append(back, heading('Build Record', record.sourceName, 'Account metadata for this build. No source or output is retained.', record.status.toUpperCase()));
         const facts = el('dl', 'detail-grid');
@@ -154,6 +238,7 @@
             const card = el('article', 'changelog-entry'); const top = el('header', 'changelog-top');
             card.dataset.release = entry.status;
             top.append(el('h2', '', entry.version), el('span', 'status-badge', entry.status)); card.append(top);
+            if (entry.status === 'In development') card.append(el('p', 'release-plan-note', 'Planned for the next release.'));
             Object.entries(entry.groups).forEach(([group, changes]) => { const section = el('section', 'change-group'); section.append(el('h3', '', group)); const list = el('ul'); changes.forEach(change => list.append(el('li', '', change))); section.append(list); card.append(section); });
             timeline.append(card);
         });
@@ -175,5 +260,186 @@
         const page = el('section', 'content-page page-section centered-page'); const panel = el('section', 'placeholder-panel'); panel.append(el('span', 'error-code', '404'), el('h1', '', 'Page not found'), el('p', '', 'The page you requested does not exist.')); const link = el('a', 'button button-primary', 'Open Workspace'); link.href = '/#/workspace'; link.dataset.route = ''; panel.append(link); page.append(panel); setPage(outlet, page);
     };
 
-    window.SukaRedViews = { history, historyDetail, pricing, credits, changelog, settings, notFound };
+    const storageRequest = (path, method, body) => window.LuavexAPI.request('/scripts' + path,
+        { method, ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
+    const routeLink = (text, href) => {
+        const link = el('a', 'button', text);
+        link.href = '/#' + href;
+        link.dataset.route = '';
+        return link;
+    };
+    const action = (text, run) => {
+        const button = el('button', 'button', text);
+        button.type = 'button';
+        button.addEventListener('click', run);
+        return button;
+    };
+    const nameDialog = ({ title, name, source, submit, done }) => {
+        const dialog = el('dialog', 'storage-dialog');
+        const form = el('form', 'storage-form');
+        const label = el('label', '', 'Script name');
+        const field = el('input', 'text-control');
+        field.value = name; field.required = true; field.autocomplete = 'off';
+        label.append(field);
+        const include = el('input'); include.type = 'checkbox';
+        if (source) {
+            const option = el('label', 'storage-check');
+            option.append(include, ' Save source');
+            form.append(option);
+        }
+        const feedback = el('p', 'storage-feedback'); feedback.setAttribute('role', 'alert');
+        const save = el('button', 'button button-primary', 'Save'); save.type = 'submit';
+        const cancel = action('Cancel', () => dialog.close());
+        const controls = el('div', 'card-actions'); controls.append(cancel, save);
+        form.prepend(el('h2', '', title), label);
+        form.append(feedback, controls); dialog.append(form);
+        document.body.append(dialog);
+        dialog.addEventListener('close', () => dialog.remove(), { once: true });
+        dialog.addEventListener('cancel', event => { if (save.disabled) event.preventDefault(); });
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (save.disabled) return;
+            const error = window.SukaRedDashboard.helpers.scriptNameError(field.value);
+            if (error) { feedback.textContent = error; field.focus(); return; }
+            save.disabled = true; cancel.disabled = true;
+            try { const result = await submit(field.value.trim(), include.checked); dialog.close(); done(result); }
+            catch (error) { feedback.textContent = error.message || 'Could not save script.'; }
+            finally { save.disabled = false; cancel.disabled = false; }
+        });
+        dialog.showModal(); field.select();
+    };
+    const saveScript = ({ name, source, output }) => nameDialog({
+        title: 'Save script', name, source,
+        submit: (name, include) => storageRequest('', 'POST', { name, output, ...(include ? { source } : {}) }),
+        done: ({ script }) => {
+            toast('Script saved', 'success');
+            window.sukaredApp.router.navigate('/storage/' + encodeURIComponent(script.id));
+        }
+    });
+    const storagePage = (outlet, title) => {
+        const page = el('section', 'content-page page-section storage-page');
+        page.append(heading('Account', title, ''));
+        setPage(outlet, page);
+        const auth = window.LuavexAuth.state;
+        if (!auth.authenticated) page.append(action('Connect Discord', window.LuavexAuth.login));
+        else if (!auth.storageAvailable) page.append(el('p', '', 'Storage is not available.'));
+        return auth.authenticated && auth.storageAvailable ? page : null;
+    };
+    const storage = async ({ outlet }) => {
+        const page = storagePage(outlet, 'My Storage');
+        if (!page) return;
+        const filter = el('input', 'text-control'); filter.placeholder = 'Search scripts'; filter.setAttribute('aria-label', 'Search scripts');
+        const sort = el('select', 'text-control'); sort.setAttribute('aria-label', 'Sort scripts');
+        for (const [value, label] of [['updated','Recently updated'],['name','Name']]) {
+            const option = el('option', '', label); option.value = value; sort.append(option);
+        }
+        const tools = el('div', 'history-controls'); tools.append(filter, sort);
+        const usage = el('p', '', 'Loading scripts…');
+        const list = el('div', 'history-list');
+        page.append(usage, tools, list);
+        let scripts = [];
+        const draw = () => {
+            const search = filter.value.trim().toLowerCase();
+            const visible = scripts.filter(row => row.name.toLowerCase().includes(search));
+            if (sort.value === 'name') visible.sort((a,b) => a.name.localeCompare(b.name));
+            list.replaceChildren();
+            if (!visible.length) list.append(el('p', 'empty-state', search ? 'No matching scripts.' : 'Save a build from Workspace to get started.'));
+            for (const row of visible) {
+                const card = el('article', 'history-card');
+                const buttons = el('div', 'card-actions');
+                const url = '/storage/' + encodeURIComponent(row.id);
+                buttons.append(routeLink('Open', url), action('Rename', () => nameDialog({
+                    title: 'Rename script', name: row.name,
+                    submit: name => storageRequest('/' + encodeURIComponent(row.id), 'PATCH', { name }),
+                    done: ({ script }) => { Object.assign(row, script); draw(); }
+                })));
+                card.append(el('h2', '', row.name), el('p', '', formatBytes(row.source_bytes + row.output_bytes)), buttons);
+                list.append(card);
+            }
+        };
+        try {
+            const result = await storageRequest('');
+            if (page.parentNode !== outlet) return;
+            scripts = result.scripts;
+            usage.textContent = formatBytes(result.usage.used) + ' used of ' + formatBytes(result.usage.limit);
+            filter.addEventListener('input', draw); sort.addEventListener('change', draw); draw();
+        } catch (error) { usage.textContent = error.message || 'Could not load scripts.'; }
+    };
+    const scriptDetails = async ({ outlet, params }) => {
+        const page = storagePage(outlet, 'Script Details');
+        if (!page) return;
+        const key = '/' + encodeURIComponent(params.id);
+        const feedback = el('p', 'storage-feedback'); feedback.setAttribute('role', 'status');
+        page.append(routeLink('My Storage', '/storage'), feedback);
+        try {
+            const { script } = await storageRequest(key);
+            if (page.parentNode !== outlet) return;
+            const title = el('h2', '', script.name);
+            const controls = el('div', 'card-actions');
+            controls.append(action('Rename', () => nameDialog({
+                title: 'Rename script', name: script.name,
+                submit: name => storageRequest(key, 'PATCH', { name }),
+                done: ({ script: updated }) => { script.name = updated.name; title.textContent = updated.name; }
+            })));
+            if (script.source !== null) controls.append(action('Open in Workspace', () => {
+                window.SukaRedDashboard.openStored(script);
+                window.sukaredApp.router.navigate('/workspace');
+            }));
+            controls.append(action('Delete', async () => {
+                if (!await confirm('Delete this script?', 'This removes its saved files.')) return;
+                try { await storageRequest(key, 'DELETE'); window.sukaredApp.router.navigate('/storage'); }
+                catch (error) { feedback.textContent = error.message; }
+            }));
+            const form = el('form', 'storage-form');
+            const editors = {};
+            for (const [key, label] of [['source','Source'],['output','Protected output']]) {
+                const section = el('section', 'history-card');
+                const fieldLabel = el('label', '', label);
+                const editor = el('textarea', 'text-control storage-editor');
+                editor.value = script[key] || '';
+                editor.spellcheck = false;
+                fieldLabel.append(editor); editors[key] = editor;
+                const download = action('Download ' + label.toLowerCase(), () => {
+                    if (script[key] != null) downloadText(script.name + (key === 'source' ? '.luau' : '.luavex.lua'), script[key]);
+                });
+                download.disabled = script[key] === null;
+                editors[key + 'Download'] = download;
+                section.append(fieldLabel, download); form.append(section);
+            }
+            const save = el('button', 'button button-primary', 'Save changes'); save.type = 'submit';
+            form.append(save);
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (save.disabled) return;
+                const source = editors.source.value || null, output = editors.output.value;
+                const changes = { ...(source !== script.source ? { source } : {}), ...(output !== script.output ? { output } : {}) };
+                if (!Object.keys(changes).length) return;
+                save.disabled = true;
+                try {
+                    await storageRequest(key, 'PATCH', changes);
+                    Object.assign(script, changes); editors.sourceDownload.disabled = script.source === null;
+                    feedback.textContent = 'Changes saved.';
+                } catch (error) { feedback.textContent = error.message; }
+                finally { save.disabled = false; }
+            });
+            page.append(title, controls, form);
+        } catch (error) { feedback.textContent = error.message || 'Could not load script.'; }
+    };
+    const account = ({ outlet }) => {
+        const page = el('section', 'content-page page-section storage-page');
+        page.append(heading('Account', 'Your account', ''));
+        const auth = window.LuavexAuth.state;
+        if (!auth.authenticated) page.append(action('Connect Discord', window.LuavexAuth.login));
+        else {
+            const profile = el('div', 'history-card');
+            profile.append(el('h2', '', auth.account.displayName || auth.account.username),
+                el('p', '', '@' + auth.account.username), el('p', '', auth.account.plan === 'premium' ? 'Premium plan' : 'Free plan'));
+            if (auth.storageAvailable) profile.append(routeLink('My Storage', '/storage'));
+            profile.append(action('Log out', () => window.LuavexAuth.logout().catch(() => toast('Could not log out.', 'error'))));
+            page.append(profile);
+        }
+        setPage(outlet, page);
+    };
+
+    window.SukaRedViews = { storage, scriptDetails, saveScript, account, history, historyDetail, pricing, credits, changelog, settings, notFound };
 })();

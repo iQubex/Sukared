@@ -5,7 +5,7 @@
     const sameOriginProxy = !local && window.LUAVEX_CONFIG?.sameOriginProxy === true;
     const configuredBase = String(window.LUAVEX_CONFIG?.apiBase || '').replace(/\/+$/, '');
     const base = sameOriginProxy ? location.origin
-        : (configuredBase || (local ? 'http://localhost:3001' : 'https://backend-luavex.up.railway.app'));
+        : (configuredBase || (local ? 'http://localhost:3001' : 'https://luavex-api.duckdns.org'));
     const requestUrl = path => sameOriginProxy
         ? `${path.startsWith('/auth/') ? '' : '/api'}${path}`
         : `${base}${path}`;
@@ -21,6 +21,21 @@
         }
         return payload;
     };
+    const protectedScripts = async options => {
+        let payload;
+        try { payload = await request('/protected-scripts', { cache: 'no-store', ...options }); }
+        catch (error) { if (error.status === 404) return null; throw error; }
+        const slots = payload.freeSlots;
+        if (!Array.isArray(payload.scripts) || slots?.limit !== 6 ||
+            !Number.isInteger(slots.used) || slots.used < 0 || slots.used > slots.limit)
+            throw new Error('Protected script status could not be loaded.');
+        return { scripts: payload.scripts.map(({ id, name, createdAt, tier }) => {
+            if (typeof id !== 'string' || !/^[a-f0-9]{48}$/.test(id) || typeof name !== 'string' ||
+                !Number.isFinite(createdAt) || Number.isNaN(new Date(createdAt).getTime()) || !['FREE', 'PAID'].includes(tier))
+                throw new Error('Invalid protected script record.');
+            return { id, name, createdAt, tier };
+        }), freeSlots: { used: slots.used, limit: slots.limit } };
+    };
     let resourceCandidate = false;
     let obfuscatePath = '/obfuscate';
     const backendLocal = ['localhost', '127.0.0.1'].includes(new URL(base, location.origin).hostname);
@@ -34,6 +49,7 @@
     window.LuavexAPI = {
         base,
         request,
+        protectedScripts,
         authUrl: sameOriginProxy ? '/auth/discord' : `${base}/auth/discord`,
         sameOriginProxy,
         isLocal: local,

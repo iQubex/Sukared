@@ -8,7 +8,7 @@ const path = require('path');
 const root = __dirname;
 const port = Number(process.env.PORT || process.env.FRONTEND_PORT) || 8080;
 const host = process.env.HOST || '0.0.0.0';
-const productionBackend = 'https://backend-luavex.up.railway.app';
+const productionBackend = 'https://luavex-api.duckdns.org';
 const mime = {
     '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
